@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "431253c620a3";</script>
+<script>window.R_VERSAO = "677575729f3c";</script>
 
 <style>
 :root {
@@ -1367,7 +1367,8 @@ R.telas.detalheLanc = function (l) {
   }
   html += '<div class="botoes"><button class="btn" data-act="voltarLancs">Voltar</button>' +
     (comNota ? '' : '<button class="btn" data-act="editarLanc" data-id="' + R.esc(l.id) + '">Editar</button><button class="btn perigo" data-act="excluirLanc" data-id="' + R.esc(l.id) + '">Excluir</button>') + '</div>' +
-    (comNota ? '<p class="muted">Venda com nota fiscal registrada não pode ser alterada. Se precisar corrigir, abra o espelho e cancele o registro da nota.</p>' : '') +
+    (comNota ? '<p class="muted">Venda com nota fiscal registrada não pode ser alterada.' +
+      (R.usuario.perfil === 'contador' ? ' Se precisar corrigir, abra o espelho e cancele o registro da nota.' : ' Se precisar corrigir, fale com o escritório de contabilidade.') + '</p>' : '') +
     (l.espelho && !comNota ? '<p class="muted">Se você alterar esta venda, o espelho precisará ser gerado e aprovado de novo.</p>' : '');
   R.pintar(html);
 };
@@ -1532,7 +1533,9 @@ R.telas.espelho = function (r) {
   } else if (e.situacao === 'emitida') {
     acoes = '<div class="alerta ok"><b>Nota fiscal registrada:</b> nº ' + e.nfNumero + ', série ' + e.nfSerie + ', emitida em ' + R.fmtData(e.nfData) +
       (e.nfChave ? '<br><small>Chave: ' + R.esc(e.nfChave.replace(/(\d{4})/g, '$1 ')) + '</small>' : '') + '<br>A venda já entrou no faturamento.</div>' +
-      '<div class="botoes"><button class="btn" data-act="imprimirEspelho">Imprimir espelho</button><button class="btn perigo" data-act="cancelarNota">Cancelar registro da nota</button></div>';
+      '<div class="botoes"><button class="btn" data-act="imprimirEspelho">Imprimir espelho</button>' +
+      (R.usuario.perfil === 'contador' ? '<button class="btn perigo" data-act="cancelarNota">Cancelar registro da nota</button>' : '') + '</div>' +
+      (R.usuario.perfil === 'contador' ? '<p class="muted">"Cancelar registro da nota" é visível só para o contador.</p>' : '<p class="muted">Se algum dado da nota estiver errado, fale com o escritório de contabilidade.</p>');
   }
   // Só o contador (usuário mestre) pode voltar uma aprovação ou recusa para "aguardando aprovação".
   if (R.usuario.perfil === 'contador' && (e.situacao === 'aprovado' || e.situacao === 'recusado')) {
