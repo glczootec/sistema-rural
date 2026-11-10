@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "db13087457fd";</script>
+<script>window.R_VERSAO = "431253c620a3";</script>
 
 <style>
 :root {
@@ -1534,6 +1534,11 @@ R.telas.espelho = function (r) {
       (e.nfChave ? '<br><small>Chave: ' + R.esc(e.nfChave.replace(/(\d{4})/g, '$1 ')) + '</small>' : '') + '<br>A venda já entrou no faturamento.</div>' +
       '<div class="botoes"><button class="btn" data-act="imprimirEspelho">Imprimir espelho</button><button class="btn perigo" data-act="cancelarNota">Cancelar registro da nota</button></div>';
   }
+  // Só o contador (usuário mestre) pode voltar uma aprovação ou recusa para "aguardando aprovação".
+  if (R.usuario.perfil === 'contador' && (e.situacao === 'aprovado' || e.situacao === 'recusado')) {
+    acoes += '<div class="botoes"><button class="btn perigo" data-act="desfazerDecisao">' + (e.situacao === 'aprovado' ? 'Desfazer aprovação' : 'Desfazer recusa') + '</button></div>' +
+      '<p class="muted">Visível só para o contador. O espelho volta para "Aguardando aprovação" e a mudança fica registrada.</p>';
+  }
   var hist = (r.anteriores || []).length ? '<details class="card"><summary>Versões anteriores (' + r.anteriores.length + ')</summary><ul class="proximos">' +
     r.anteriores.map(function (a) {
       return '<li>Versão ' + a.versao + ' – gerada em ' + R.fmtDataHora(a.criadoEm.slice(0, 16)) + (a.aprovadoPor ? ' · aprovada por ' + R.esc(a.aprovadoPor) : '') +
@@ -1572,6 +1577,16 @@ R.acoes.editarVendaEspelho = function () {
   // a venda pode ser de outro mês: busca pelo mês da data do espelho
   var mes = JSON.parse(R.espAtual.espelho.dados).data.slice(0, 7);
   return R.carregarMes(mes).then(function (lancs) { var x = R.porId(lancs, lid); if (x) abrir(x); else R.toast('Venda não encontrada.', true); });
+};
+
+R.acoes.desfazerDecisao = function () {
+  var aprovado = R.espAtual.espelho.situacao === 'aprovado';
+  if (!confirm(aprovado ? 'Desfazer a aprovação? O espelho volta para "Aguardando aprovação" e a nota só poderá ser registrada depois de uma nova aprovação.'
+    : 'Desfazer a recusa? O espelho volta para "Aguardando aprovação".')) return;
+  return R.exec('desfazerDecisao', { empresaId: R.empresa.id, espelhoId: R.espAtual.espelho.id }).then(function () {
+    R.toast(aprovado ? 'Aprovação desfeita.' : 'Recusa desfeita.');
+    return R.abrirEspelho(R.espAtual.espelho.id);
+  });
 };
 
 R.acoes.cancelarNota = function () {
