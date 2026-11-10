@@ -105,6 +105,56 @@ input[type=checkbox] { width: 22px; height: 22px; min-height: 0; flex: none; acc
 @keyframes gira { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
 
+/* ---------- Fase 1: cadastros e lançamentos ---------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.seg { display: flex; gap: 4px; background: #e6ebe6; padding: 4px; border-radius: 11px; margin: 0 0 12px; overflow-x: auto; }
+.seg button { flex: 1 0 auto; border: 0; background: none; border-radius: 8px; padding: 9px 10px; font: inherit; font-size: .9rem; color: var(--muted); cursor: pointer; min-height: 42px; white-space: nowrap; }
+.seg button.ativo { background: var(--card); color: var(--pri-escuro); font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.grade3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8px; }
+.grade3 .campo > span { font-size: .8rem; }
+.linha-item { border: 1px solid var(--borda); border-radius: 10px; padding: 10px 10px 2px; margin: 0 0 10px; background: #fbfcfa; }
+.linha-topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.erro-linha { color: var(--aviso); font-size: .85rem; margin: -4px 0 8px; }
+.erro-linha:empty { display: none; }
+details.extras { margin: 6px 0 12px; }
+details.extras summary { cursor: pointer; color: var(--pri); font-weight: 600; padding: 8px 0; }
+.total-nota input { font-size: 1.15rem; font-weight: 700; }
+table.conf { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: .95rem; }
+table.conf td { padding: 5px 2px; border-bottom: 1px solid var(--borda); }
+table.conf td:last-child { text-align: right; white-space: nowrap; }
+table.conf tr.forte td { font-weight: 700; }
+table.conf tr.bate td { color: var(--ok); font-weight: 700; border-bottom: 0; }
+table.conf tr.naobate td { color: var(--erro); font-weight: 700; border-bottom: 0; }
+.alerta ul { margin: 6px 0 0; padding-left: 1.2rem; }
+.parcela { align-items: end; }
+.mes-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.mes-nav .btn { min-width: 48px; font-size: 1.2rem; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 12px; }
+.kpi { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpi span { color: var(--muted); font-size: .82rem; }
+.kpi b { font-size: 1.1rem; overflow-wrap: anywhere; }
+.kpi small { color: var(--muted); font-size: .8rem; }
+.acoes-lanc { margin: 0 0 12px; }
+.acoes-grandes { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 16px; }
+.item.lanc { border-left: 4px solid var(--borda); }
+.item.lanc.compra { border-left-color: #b8762a; }
+.item.lanc.venda { border-left-color: var(--pri); }
+.lanc-linha { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.lanc-linha .valor { white-space: nowrap; }
+table.tabela { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.tabela th { text-align: left; color: var(--muted); font-weight: 600; font-size: .8rem; padding: 4px 4px; border-bottom: 1px solid var(--borda); }
+table.tabela td { padding: 6px 4px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+table.tabela td:not(:first-child), table.tabela th:not(:first-child) { text-align: right; white-space: nowrap; }
+.plano .pl-s { font-weight: 700; padding: 8px 4px 4px; }
+.plano .pl-s.n1 { font-size: 1.02rem; border-top: 1px solid var(--borda); margin-top: 6px; }
+.plano .pl-s.n1:first-child { border-top: 0; margin-top: 0; }
+.plano .pl-s.n2 { padding-left: 10px; }
+.plano .pl-s.n3 { padding-left: 20px; color: var(--muted); font-size: .92rem; }
+.plano .pl-a { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px 4px 8px 30px; font: inherit; color: inherit; cursor: pointer; min-height: 40px; }
+.plano .pl-a:hover { background: var(--pri-claro); }
+.plano .cod { color: var(--muted); font-family: Consolas, Menlo, monospace; font-size: .85rem; }
+@media (max-width: 380px) { .grade3 { grid-template-columns: 1fr 1fr; } .grade3 .campo:last-child { grid-column: span 2; } }
+
 </style>
 </head>
 <body>
@@ -144,6 +194,46 @@ R.fmtDoc = function (d) {
   if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   return d;
 };
+
+// ---------- Números e dinheiro (aceita "1.234,56", "1234,56" e "1234.56") ----------
+R.parseNum = function (v) {
+  if (typeof v === 'number') return v;
+  var s = String(v === undefined || v === null ? '' : v).replace(/[R$\s]/g, '');
+  if (!s) return NaN;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  return /^\d*\.?\d+$/.test(s) ? Number(s) : NaN;
+};
+R.paraCentavos = function (v) { var n = R.parseNum(v); return isFinite(n) ? Math.round(n * 100) : NaN; };
+R.fmtR = function (c) { return isFinite(c) ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'; };
+R.fmtNum = function (n, casas) { return isFinite(n) ? Number(n).toLocaleString('pt-BR', { maximumFractionDigits: casas === undefined ? 3 : casas }) : ''; };
+R.numCampo = function (n, casas) { return n || n === 0 ? R.fmtNum(n, casas).replace(/\./g, '') : ''; };
+R.centCampo = function (c) { return c ? (c / 100).toFixed(2).replace('.', ',') : ''; };
+R.hoje = function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+R.somarMeses = function (iso, n) {
+  var p = iso.split('-').map(Number), alvo = new Date(Date.UTC(p[0], p[1] - 1 + n, 1));
+  var ultimo = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(p[2], ultimo));
+  return alvo.toISOString().slice(0, 10);
+};
+R.nomeMes = function (ym) {
+  var p = ym.split('-').map(Number);
+  var n = new Date(p[0], p[1] - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return n.charAt(0).toUpperCase() + n.slice(1);
+};
+
+R.UNIDADES = [['UN', 'Unidade'], ['KG', 'Quilo (kg)'], ['G', 'Grama (g)'], ['T', 'Tonelada'], ['MC', 'Maço'], ['CX', 'Caixa'], ['DZ', 'Dúzia'], ['SC', 'Saco'],
+  ['PCT', 'Pacote'], ['BDJ', 'Bandeja'], ['L', 'Litro'], ['ML', 'Mililitro'], ['M3', 'Metro cúbico'], ['M', 'Metro'], ['H', 'Hora'], ['DIA', 'Diária'], ['SV', 'Serviço']];
+R.FORMAS = [['dinheiro', 'Dinheiro'], ['pix', 'PIX'], ['cartao_credito', 'Cartão de crédito'], ['cartao_debito', 'Cartão de débito'], ['boleto', 'Boleto'],
+  ['transferencia', 'Transferência'], ['cheque', 'Cheque'], ['outros', 'Outros']];
+R.TIPOS_ITEM = [['produto', 'Produto que vendo'], ['insumo', 'Insumo ou material'], ['servico', 'Despesa ou serviço']];
+R.rotulo = function (lista, cod) { var a = lista.filter(function (x) { return x[0] === cod; })[0]; return a ? a[1] : cod; };
+R.opcoes = function (lista, atual, vazio) {
+  return (vazio ? '<option value="">' + R.esc(vazio) + '</option>' : '') + lista.map(function (x) {
+    return '<option value="' + R.esc(x[0]) + '"' + (x[0] === atual ? ' selected' : '') + '>' + R.esc(x[1]) + '</option>';
+  }).join('');
+};
+R.porId = function (lista, id) { return (lista || []).filter(function (x) { return x.id === id; })[0]; };
+R.fmtNcm = function (n) { return n && n.length === 8 ? n.replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3') : n || ''; };
 
 // O armazenamento do navegador pode estar bloqueado: o app continua funcionando sem ele.
 R.guardar = function (k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { } };
@@ -364,6 +454,7 @@ R.entrar = function (r) {
 R.abrirEmpresa = function (id) {
   return R.exec('abrirEmpresa', { empresaId: id }).then(function (r) {
     R.empresa = r.empresa;
+    R.cad = r.dados;
     R.guardar('rural_empresa', id);
     R.ir('inicio');
   }, function (e) {
@@ -410,22 +501,30 @@ R.encerrar = function () {
 
 /* Início e Minha conta. */
 R.telas.inicio = function () {
-  var e = R.empresa, contador = R.usuario.perfil === 'contador';
+  var e = R.empresa, contador = R.usuario.perfil === 'contador', mes = R.hoje().slice(0, 7);
   R.pintar('<h1>Olá, ' + R.esc(R.usuario.nome.split(' ')[0]) + '</h1>' +
-    '<p class="muted">' + (contador ? 'Área contábil' : 'Área do produtor') + '</p>' +
-    '<div class="card destaque"><h2>' + R.esc(e.nome) + '</h2><dl class="dados">' +
-    '<dt>CPF/CNPJ</dt><dd>' + R.esc(R.fmtDoc(e.documento)) + '</dd>' +
-    (e.inscricaoEstadual ? '<dt>Inscrição estadual</dt><dd>' + R.esc(e.inscricaoEstadual) + '</dd>' : '') +
-    '<dt>Município</dt><dd>' + R.esc(e.municipio) + '/' + R.esc(e.uf) + '</dd>' +
-    '<dt>Início no sistema</dt><dd>' + R.esc(R.fmtData(e.dataInicio)) + '</dd></dl></div>' +
-    '<div class="card"><h3>Em preparação</h3><p class="muted">O acesso está pronto. Os próximos módulos aparecem aqui conforme forem liberados:</p>' +
-    '<ul class="proximos"><li>Lançamento de compras e vendas</li><li>Espelho de nota</li><li>Contas a pagar e a receber</li><li>Fluxo de caixa e DRE</li></ul></div>');
+    '<p class="muted">' + (contador ? 'Área contábil' : 'Área do produtor') + ' · ' + R.esc(e.nome) + '</p>' +
+    '<div class="acoes-grandes"><button class="btn primario grande" data-act="novaCompra">+ Lançar compra ou despesa</button>' +
+    '<button class="btn primario grande" data-act="novaVenda">+ Lançar venda</button></div>' +
+    '<div id="inicioMes"><div class="card"><p class="muted">Carregando o mês...</p></div></div>');
+  return R.carregarMes(mes).then(function (lancs) {
+    if (R.tela !== 'inicio') return;
+    R.mesLanc = mes;
+    var s = R.resumoMes(lancs);
+    R.el('inicioMes').innerHTML = '<h2>' + R.nomeMes(mes) + '</h2>' +
+      '<div class="cards"><div class="kpi"><span>Compras e despesas</span><b>' + R.fmtR(s.compras) + '</b></div>' +
+      '<div class="kpi"><span>Vendas lançadas</span><b>' + R.fmtR(s.vendas) + '</b>' + (s.aguardando ? '<small>' + s.aguardando + ' aguardando nota</small>' : '') + '</div></div>' +
+      (lancs.length ? '<h3>Últimos lançamentos</h3>' + lancs.slice(0, 5).map(R.cartaoLanc).join('') +
+        '<div class="botoes"><button class="btn" data-act="nav" data-tela="lancamentos">Ver todos</button></div>' :
+        '<div class="card"><p class="muted">Nenhum lançamento neste mês. Comece cadastrando seus itens em <b>Cadastros</b> e depois lance a primeira compra ou venda.</p></div>');
+  });
 };
 
 R.telas.conta = function () {
   var u = R.usuario;
   R.pintar('<h1>Minha conta</h1><div class="card"><dl class="dados"><dt>Nome</dt><dd>' + R.esc(u.nome) + '</dd><dt>E-mail</dt><dd>' + R.esc(u.email) + '</dd>' +
-    '<dt>Perfil</dt><dd>' + (u.perfil === 'contador' ? 'Contador' : 'Produtor') + '</dd></dl></div>' +
+    '<dt>Perfil</dt><dd>' + (u.perfil === 'contador' ? 'Contador' : 'Produtor') + '</dd>' +
+    (R.empresa ? '<dt>Empresa</dt><dd>' + R.esc(R.empresa.nome) + ' · início ' + R.esc(R.fmtData(R.empresa.dataInicio)) + '</dd>' : '') + '</dl></div>' +
     '<form class="card" data-form="trocarSenha" novalidate><h2>Trocar a senha</h2><div class="msg" hidden></div>' +
     R.campoSenha('senhaAtual', 'Senha atual', 'current-password') +
     R.campoSenha('novaSenha', 'Nova senha', 'new-password', AJUDA_SENHA) +
@@ -482,6 +581,8 @@ R.forms.empresa = function (d) {
   return R.exec('salvarEmpresa', d).then(function (r) {
     R.empresas = r.empresas;
     R.toast('Empresa salva.');
+    if (!R.empresa && r.empresa.ativa) return R.abrirEmpresa(r.empresa.id); // primeira empresa: já abre para trabalhar
+    if (R.empresa && R.empresa.id === r.empresa.id) R.empresa = r.empresa;
     R.ir('empresas');
   });
 };
@@ -559,15 +660,684 @@ R.acoes.copiarSenha = function () {
   R.toast(ok ? 'Senha copiada.' : 'Selecione o texto e copie manualmente.', !ok);
 };
 
+/* Cadastros da empresa: itens, clientes, fornecedores e contas (caixa/bancos). */
+R.abaCadastro = 'itens';
+
+R.ABAS_CAD = [['itens', 'Itens'], ['clientes', 'Clientes'], ['fornecedores', 'Fornecedores'], ['contas', 'Caixa e bancos']];
+
+R.telas.cadastros = function () {
+  var aba = R.abaCadastro, c = R.cad, html = '<h1>Cadastros</h1><div class="seg" role="tablist">' + R.ABAS_CAD.map(function (a) {
+    return '<button role="tab" data-act="abaCad" data-aba="' + a[0] + '" aria-selected="' + (a[0] === aba) + '"' + (a[0] === aba ? ' class="ativo"' : '') + '>' + a[1] + '</button>';
+  }).join('') + '</div>';
+  var novo = { itens: 'Novo item', clientes: 'Novo cliente', fornecedores: 'Novo fornecedor', contas: 'Nova conta' }[aba];
+  html += '<div class="botoes" style="margin:0 0 12px"><button class="btn primario" data-act="novoCad">' + novo + '</button></div>';
+  var lista = c[aba] || [];
+  if (!lista.length) html += '<div class="card"><p class="muted">Nada cadastrado ainda.</p></div>';
+  html += lista.map(function (r) {
+    var sub = '';
+    if (aba === 'itens') sub = R.rotulo(R.TIPOS_ITEM, r.tipo) + ' · ' + R.rotulo(R.UNIDADES, r.unidade) + (r.ncm ? ' · NCM ' + R.fmtNcm(r.ncm) : '');
+    if (aba === 'clientes') sub = (r.documento ? R.fmtDoc(r.documento) : 'Sem CPF/CNPJ') + (r.municipio ? ' · ' + r.municipio + '/' + r.uf : '');
+    if (aba === 'fornecedores') sub = r.documento ? R.fmtDoc(r.documento) : 'Sem CPF/CNPJ';
+    if (aba === 'contas') sub = (r.tipo === 'banco' ? 'Banco' : 'Caixa') + ' · conta contábil ' + r.contaContabilId;
+    var ativo = aba === 'contas' ? r.ativa : r.ativo;
+    var incompleto = aba === 'clientes' && !R.clienteCompleto(r);
+    return '<button class="item" data-act="editarCad" data-id="' + R.esc(r.id) + '"><b>' + R.esc(r.nome) + '</b><small>' + R.esc(sub) + '</small>' +
+      (ativo ? '' : '<span class="selo off">Inativo</span>') + (incompleto && ativo ? '<span class="selo alerta-selo">Cadastro incompleto para nota</span>' : '') + '</button>';
+  }).join('');
+  R.pintar(html);
+};
+
+R.clienteCompleto = function (c) {
+  return !!(c.documento && c.logradouro && c.numero && c.bairro && c.municipio && c.uf && c.cep);
+};
+
+R.acoes.abaCad = function (el) { R.abaCadastro = el.dataset.aba; R.ir('cadastros'); };
+R.acoes.novoCad = function () { R.retorno = null; R.abrirFormCad(R.abaCadastro, {}); };
+R.acoes.editarCad = function (el) { R.retorno = null; R.abrirFormCad(R.abaCadastro, R.porId(R.cad[R.abaCadastro], el.dataset.id)); };
+R.abrirFormCad = function (aba, reg) {
+  R.ir({ itens: 'formItem', clientes: 'formCliente', fornecedores: 'formFornecedor', contas: 'formContaFin' }[aba], reg);
+};
+R.acoes.voltarCad = function () { if (R.retorno) R.voltarAoLancamento(); else R.ir('cadastros'); };
+
+R.botoesForm = function () {
+  return '<div class="botoes"><button type="button" class="btn" data-act="voltarCad">Cancelar</button><button class="btn primario">Salvar</button></div>';
+};
+R.campo = function (nome, rotulo, valor, extra) {
+  return '<label class="campo"><span>' + rotulo + '</span><input name="' + nome + '" value="' + R.esc(valor) + '" ' + (extra || '') + '></label>';
+};
+R.checkAtivo = function (r, campo) {
+  return r.id ? '<label class="check"><input type="checkbox" name="' + campo + '" value="1"' + (r[campo] ? ' checked' : '') + '><span>Ativo</span></label>' : '';
+};
+
+// Depois de salvar: atualiza a lista e, se veio do lançamento, volta para ele com o cadastro novo selecionado.
+R.depoisDeSalvarCad = function (aba, r) {
+  R.cad[aba] = r.lista;
+  R.toast('Cadastro salvo.');
+  if (R.retorno) R.voltarAoLancamento(r.registro);
+  else { R.abaCadastro = aba; R.ir('cadastros'); }
+};
+
+// ---------- Item ----------
+R.telas.formItem = function (r) {
+  var tipo = r.tipo || (R.retorno && R.retorno.tipoItem) || 'produto';
+  R.pintar('<h1>' + (r.id ? 'Editar item' : 'Novo item') + '</h1><form class="card" data-form="item" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
+    R.campo('nome', 'Nome', r.nome, 'required maxlength="80"') +
+    '<label class="campo"><span>Tipo</span><select name="tipo" data-act-change="tipoItem">' + R.opcoes(R.TIPOS_ITEM, tipo) + '</select></label>' +
+    '<label class="campo"><span>Unidade de saída</span><select name="unidade">' + R.opcoes(R.UNIDADES, r.unidade, 'Selecione') + '</select></label>' +
+    '<div class="grade2"><label class="campo" id="campoNcm"' + (tipo === 'servico' ? ' hidden' : '') + '><span>NCM' + (tipo === 'produto' ? '' : ' (opcional)') + '</span>' +
+    '<input name="ncm" inputmode="numeric" maxlength="10" placeholder="0000.00.00" value="' + R.esc(R.fmtNcm(r.ncm)) + '"></label>' +
+    R.campo('precoSugerido', 'Preço sugerido (opcional)', R.centCampo(r.precoSugerido), 'inputmode="decimal" placeholder="0,00"') + '</div>' +
+    '<label class="campo"><span>CFOP (opcional)</span><input name="cfop" inputmode="numeric" maxlength="4" value="' + R.esc(r.cfop) + '"></label>' +
+    R.checkAtivo(r, 'ativo') + R.botoesForm() + '</form>');
+};
+
+document.addEventListener('change', function (ev) {
+  if (ev.target.name === 'tipo' && ev.target.closest('[data-form=item]')) {
+    var t = ev.target.value, c = R.el('campoNcm');
+    c.hidden = t === 'servico';
+    c.querySelector('span').textContent = 'NCM' + (t === 'produto' ? '' : ' (opcional)');
+  }
+});
+
+R.forms.item = function (d) {
+  var preco = d.precoSugerido ? R.paraCentavos(d.precoSugerido) : 0;
+  if (!isFinite(preco)) return Promise.reject(new Error('Preço sugerido inválido.'));
+  return R.exec('salvarItem', { empresaId: R.empresa.id, id: d.id, nome: d.nome, tipo: d.tipo, unidade: d.unidade, ncm: d.ncm, cfop: d.cfop, precoSugerido: preco, ativo: d.id ? d.ativo === '1' : true })
+    .then(function (r) { R.depoisDeSalvarCad('itens', r); });
+};
+
+// ---------- Cliente ----------
+R.telas.formCliente = function (r) {
+  R.pintar('<h1>' + (r.id ? 'Editar cliente' : 'Novo cliente') + '</h1><form class="card" data-form="cliente" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
+    R.campo('nome', 'Nome ou razão social', r.nome, 'required maxlength="120"') +
+    '<div class="grade2">' + R.campo('documento', 'CPF ou CNPJ', R.fmtDoc(r.documento), 'inputmode="numeric"') +
+    R.campo('inscricaoEstadual', 'Inscrição estadual', r.inscricaoEstadual, 'maxlength="30"') + '</div>' +
+    '<p class="muted" style="margin-top:0">Para emitir o espelho de nota, preencha também o endereço completo.</p>' +
+    R.campo('logradouro', 'Endereço (rua, estrada, sítio)', r.logradouro, 'maxlength="120"') +
+    '<div class="grade2">' + R.campo('numero', 'Número', r.numero, 'maxlength="20"') + R.campo('bairro', 'Bairro', r.bairro, 'maxlength="80"') + '</div>' +
+    '<div class="grade2">' + R.campo('municipio', 'Município', r.municipio, 'maxlength="80"') +
+    '<label class="campo"><span>Estado</span><select name="uf"><option value="">Selecione</option>' +
+    R.UFS.map(function (u) { return '<option' + (u === r.uf ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></label></div>' +
+    '<div class="grade2">' + R.campo('cep', 'CEP', r.cep ? r.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : '', 'inputmode="numeric" maxlength="9"') +
+    R.campo('telefone', 'Telefone', r.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    R.campo('email', 'E-mail', r.email, 'type="email" inputmode="email"') +
+    R.checkAtivo(r, 'ativo') + R.botoesForm() + '</form>');
+};
+
+R.forms.cliente = function (d) {
+  d.empresaId = R.empresa.id;
+  d.ativo = d.id ? d.ativo === '1' : true;
+  return R.exec('salvarCliente', d).then(function (r) { R.depoisDeSalvarCad('clientes', r); });
+};
+
+// ---------- Fornecedor ----------
+R.telas.formFornecedor = function (r) {
+  R.pintar('<h1>' + (r.id ? 'Editar fornecedor' : 'Novo fornecedor') + '</h1><form class="card" data-form="fornecedor" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
+    R.campo('nome', 'Nome', r.nome, 'required maxlength="120"') +
+    '<div class="grade2">' + R.campo('documento', 'CPF ou CNPJ (opcional)', R.fmtDoc(r.documento), 'inputmode="numeric"') +
+    R.campo('telefone', 'Telefone (opcional)', r.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    R.checkAtivo(r, 'ativo') + R.botoesForm() + '</form>');
+};
+
+R.forms.fornecedor = function (d) {
+  d.empresaId = R.empresa.id;
+  d.ativo = d.id ? d.ativo === '1' : true;
+  return R.exec('salvarFornecedor', d).then(function (r) { R.depoisDeSalvarCad('fornecedores', r); });
+};
+
+// ---------- Caixa e bancos ----------
+R.telas.formContaFin = function (r) {
+  R.pintar('<h1>' + (r.id ? 'Editar conta' : 'Nova conta') + '</h1><form class="card" data-form="contaFin" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
+    R.campo('nome', 'Nome (ex.: Banco do Brasil, Caixa da feira)', r.nome, 'required maxlength="60"') +
+    '<label class="campo"><span>Tipo</span><select name="tipo">' + R.opcoes([['caixa', 'Caixa (dinheiro)'], ['banco', 'Conta em banco']], r.tipo || 'banco') + '</select></label>' +
+    (r.id ? '<label class="check"><input type="checkbox" name="ativa" value="1"' + (r.ativa ? ' checked' : '') + '><span>Ativa</span></label>' : '') +
+    R.botoesForm() + '</form>');
+};
+
+R.forms.contaFin = function (d) {
+  return R.exec('salvarContaFinanceira', { empresaId: R.empresa.id, id: d.id, nome: d.nome, tipo: d.tipo, ativa: d.id ? d.ativa === '1' : true }).then(function (r) {
+    R.cad.contas = r.contas;
+    R.cad.plano = r.plano;
+    R.toast('Conta salva.');
+    R.abaCadastro = 'contas';
+    R.ir('cadastros');
+  });
+};
+
+// ---------- Escritório (contador) ----------
+R.telas.escritorio = function () {
+  R.pintar('<h1>Escritório</h1><p class="muted">Ferramentas do contador.</p>' +
+    '<button class="item" data-act="nav" data-tela="plano"><b>Plano de contas</b><small>Contas e categorias da empresa aberta</small></button>' +
+    '<button class="item" data-act="nav" data-tela="empresas"><b>Empresas</b><small>Cadastrar e editar empresas</small></button>' +
+    '<button class="item" data-act="nav" data-tela="usuarios"><b>Usuários</b><small>Acessos e senhas temporárias</small></button>');
+};
+
+R.USOS_CONTA = [['', 'Nenhum'], ['compra', 'Categoria de compra (custo ou despesa)'], ['investimento', 'Categoria de compra (investimento)']];
+
+R.telas.plano = function () {
+  if (!R.empresa) { R.pintar('<div class="card"><p>Abra uma empresa primeiro.</p></div>'); return; }
+  R.pintar('<div class="titulo-linha"><h1>Plano de contas</h1><button class="btn primario" data-act="novaConta">Nova conta</button></div>' +
+    '<p class="muted">Contas marcadas como categoria aparecem para o produtor ao lançar compras.</p><div class="card plano">' +
+    R.cad.plano.map(function (c) {
+      var nivel = c.id.split('.').length;
+      var rot = '<span class="cod">' + R.esc(c.id) + '</span> ' + R.esc(c.nome);
+      var selos = (c.uso === 'compra' || c.uso === 'investimento' ? ' <span class="selo">Categoria</span>' : '') + (c.ativa ? '' : ' <span class="selo off">Inativa</span>');
+      return c.tipo === 'S' ? '<div class="pl-s n' + nivel + '">' + rot + '</div>' :
+        '<button class="pl-a" data-act="editarConta" data-id="' + R.esc(c.id) + '">' + rot + selos + '</button>';
+    }).join('') + '</div>');
+};
+
+R.acoes.novaConta = function () { R.ir('formConta', {}); };
+R.acoes.editarConta = function (el) { R.ir('formConta', R.porId(R.cad.plano, el.dataset.id)); };
+R.acoes.irPlano = function () { R.ir('plano'); };
+
+R.telas.formConta = function (c) {
+  var grupos = R.cad.plano.filter(function (x) { return x.tipo === 'S' && x.id.split('.').length === 3; });
+  var travada = c.id && c.sistema && c.uso !== 'compra' && c.uso !== 'investimento';
+  R.pintar('<h1>' + (c.id ? 'Editar conta ' + R.esc(c.id) : 'Nova conta') + '</h1><form class="card" data-form="conta" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(c.id) + '">' +
+    (c.id ? '' : '<label class="campo"><span>Grupo</span><select name="paiId"><option value="">Selecione</option>' + grupos.map(function (g) {
+      return '<option value="' + R.esc(g.id) + '">' + R.esc(g.id + ' ' + g.nome) + '</option>';
+    }).join('') + '</select></label>') +
+    R.campo('nome', 'Nome', c.nome, 'required maxlength="80"') +
+    (travada ? '<p class="muted">Conta usada pelo sistema nos lançamentos automáticos: só o nome pode ser alterado.</p>' :
+      '<label class="campo"><span>Uso</span><select name="uso">' + R.opcoes(R.USOS_CONTA, c.uso || '') + '</select></label>' +
+      (c.id ? '<label class="check"><input type="checkbox" name="ativa" value="1"' + (c.ativa ? ' checked' : '') + '><span>Ativa</span></label>' : '')) +
+    '<div class="botoes"><button type="button" class="btn" data-act="irPlano">Cancelar</button><button class="btn primario">Salvar</button></div></form>');
+};
+
+R.forms.conta = function (d) {
+  var p = { empresaId: R.empresa.id, id: d.id, paiId: d.paiId, nome: d.nome, uso: d.uso === undefined ? R.porId(R.cad.plano, d.id).uso : d.uso };
+  if (d.id) p.ativa = d.uso === undefined ? true : d.ativa === '1';
+  return R.exec('salvarConta', p).then(function (r) {
+    R.cad.plano = r.plano;
+    R.toast('Conta salva.');
+    R.ir('plano');
+  });
+};
+
+/* Tela de lançamento de compra/despesa ou venda, com as travas de valores conferidas na hora. */
+R.novoL = function (tipo) {
+  var caixa = (R.cad.contas || []).filter(function (c) { return c.ativa; })[0];
+  var hoje = R.hoje(), data = hoje < R.empresa.dataInicio ? R.empresa.dataInicio : hoje;
+  return {
+    id: '', tipo: tipo, data: data, pessoaId: '', pessoaNome: '', formaPagamento: '', condicao: 'vista',
+    contaFinanceiraId: caixa ? caixa.id : '', categoriaId: '', catSugerida: false, destinoId: 'geral',
+    itens: [R.novaLinha()], frete: '', acrescimos: '', desconto: '', total: '', extras: false,
+    nParcelas: 1, primeiroVenc: R.somarMeses(data, 1), parcelas: [], parcelasManual: false, observacao: ''
+  };
+};
+R.novaLinha = function () { return { itemId: '', qtd: '', vu: '', vt: '', vtManual: false }; };
+
+// Converte um lançamento salvo para o formato da tela (edição).
+R.lancParaForm = function (l) {
+  return {
+    id: l.id, tipo: l.tipo, data: l.data, pessoaId: l.pessoaId, pessoaNome: l.pessoaNome, formaPagamento: l.formaPagamento, condicao: l.condicao,
+    contaFinanceiraId: l.contaFinanceiraId, categoriaId: l.categoriaId, catSugerida: false, destinoId: l.destinoId || 'geral',
+    itens: l.itens.map(function (i) { return { itemId: i.itemId, qtd: R.numCampo(i.quantidade, 3), vu: R.numCampo(i.valorUnitario, 4), vt: R.centCampo(i.valorTotal), vtManual: true }; }),
+    frete: R.centCampo(l.frete), acrescimos: R.centCampo(l.acrescimos), desconto: R.centCampo(l.desconto), total: R.centCampo(l.total),
+    extras: !!(l.frete || l.acrescimos || l.desconto),
+    nParcelas: l.parcelas.length || 1, primeiroVenc: l.parcelas.length ? l.parcelas[0].vencimento : R.somarMeses(l.data, 1),
+    parcelas: l.parcelas.map(function (p) { return { venc: p.vencimento, valor: R.centCampo(p.valor) }; }), parcelasManual: true, observacao: l.observacao
+  };
+};
+
+R.chaveRascunho = function () { return 'rural_rasc_' + R.empresa.id; };
+R.salvarRascunho = function () { if (R.L && !R.L.id) R.guardar(R.chaveRascunho(), JSON.stringify(R.L)); };
+
+R.acoes.novaCompra = function () { R.ir('lancar', { novo: 'compra' }); };
+R.acoes.novaVenda = function () { R.ir('lancar', { novo: 'venda' }); };
+
+R.telas.lancar = function (d) {
+  d = d || {};
+  R.avisoRascunho = false;
+  if (d.novo) {
+    var rasc = null;
+    try { rasc = JSON.parse(R.ler(R.chaveRascunho()) || 'null'); } catch (e) { rasc = null; }
+    if (rasc && rasc.tipo === d.novo && !rasc.id) { R.L = rasc; R.avisoRascunho = true; } else R.L = R.novoL(d.novo);
+  } else if (d.editar) R.L = R.lancParaForm(d.editar);
+  if (!R.L) R.L = R.novoL('compra');
+  R.renderLanc();
+};
+
+R.acoes.descartarRascunho = function () {
+  R.guardar(R.chaveRascunho(), '');
+  R.L = R.novoL(R.L.tipo);
+  R.avisoRascunho = false;
+  R.renderLanc();
+};
+
+R.renderLanc = function () {
+  var L = R.L, compra = L.tipo === 'compra';
+  var titulo = (L.id ? 'Editar ' : 'Nova ') + (compra ? 'compra ou despesa' : 'venda');
+  var html = '<h1>' + titulo + '</h1>' +
+    (R.avisoRascunho ? '<div class="alerta aviso">Recuperamos um lançamento que não foi salvo. <button class="btn link" data-act="descartarRascunho">Começar do zero</button></div>' : '') +
+    '<form id="formLanc" data-form="lanc" novalidate autocomplete="off"><div class="card">' +
+    '<label class="campo"><span>Data da ' + (compra ? 'compra' : 'venda') + '</span><input type="date" data-l="data" value="' + R.esc(L.data) + '" min="' + R.esc(R.empresa.dataInicio) + '"></label>';
+  if (compra) {
+    html += '<label class="campo"><span>Fornecedor (opcional)</span><input data-l="pessoaTexto" list="dlForn" maxlength="120" placeholder="Digite ou escolha" value="' + R.esc(L.pessoaNome) + '">' +
+      '<datalist id="dlForn">' + (R.cad.fornecedores || []).filter(function (f) { return f.ativo; }).map(function (f) { return '<option value="' + R.esc(f.nome) + '">'; }).join('') + '</datalist>' +
+      '<small>Se o nome for novo, o fornecedor é cadastrado ao salvar.</small></label>';
+  } else {
+    html += '<label class="campo"><span>Cliente</span><select data-l="pessoaId"><option value="">Consumidor não identificado (feira, balcão)</option>' +
+      (R.cad.clientes || []).filter(function (c) { return c.ativo; }).map(function (c) {
+        return '<option value="' + R.esc(c.id) + '"' + (c.id === L.pessoaId ? ' selected' : '') + '>' + R.esc(c.nome) + '</option>';
+      }).join('') + '</select></label><div class="botoes" style="margin-top:-6px"><button type="button" class="btn link" data-act="novoClienteLanc">+ Cadastrar cliente</button></div>' +
+      '<div id="avisoCliente"></div>';
+  }
+  html += '</div><div class="card"><h2>Itens</h2><div id="lcItens"></div>' +
+    '<div class="botoes"><button type="button" class="btn" data-act="addLinha">+ Adicionar item</button></div>' +
+    '<details class="extras"' + (L.extras ? ' open' : '') + '><summary>Frete, desconto e acréscimos</summary><div class="grade3">' +
+    R.campoNum('frete', 'Frete', L.frete) + R.campoNum('acrescimos', 'Outros acréscimos', L.acrescimos) + R.campoNum('desconto', 'Desconto', L.desconto) + '</div></details>' +
+    '<label class="campo total-nota"><span>Valor total da nota (ou do gasto)</span><input data-l="total" inputmode="decimal" placeholder="0,00" value="' + R.esc(L.total) + '"></label>' +
+    '<div id="lcConf"></div></div>' +
+    '<div class="card"><h2>Pagamento</h2><div id="lcPagto"></div></div>';
+  if (compra) {
+    html += '<div class="card"><h2>Classificação</h2><label class="campo"><span>Categoria</span><select data-l="categoriaId">' + R.opcoesCategoria(L.categoriaId) + '</select>' +
+      '<small id="catSug"' + (L.catSugerida ? '' : ' hidden') + '>Sugerida pela última compra deste fornecedor.</small></label>' +
+      '<label class="campo"><span>Para qual produto foi o gasto?</span><select data-l="destinoId"><option value="geral">Geral da propriedade</option>' +
+      R.itensAtivos('produto').map(function (i) { return '<option value="' + R.esc(i.id) + '"' + (i.id === L.destinoId ? ' selected' : '') + '>' + R.esc(i.nome) + '</option>'; }).join('') +
+      '</select><small>Gastos gerais são divididos entre os produtos nos relatórios.</small></label></div>';
+  }
+  html += '<div class="card"><label class="campo"><span>Observação (opcional)</span><input data-l="observacao" maxlength="300" value="' + R.esc(L.observacao) + '"></label></div>' +
+    '<div class="msg" hidden></div><div id="lcFalta"></div>' +
+    '<div class="botoes"><button type="button" class="btn" data-act="cancelarLanc">Cancelar</button><button class="btn primario" id="btSalvarLanc">Salvar</button></div></form>';
+  R.pintar(html);
+  R.renderItens();
+  R.renderPagto();
+  R.atualizarLanc();
+};
+
+R.campoNum = function (campo, rotulo, valor) {
+  return '<label class="campo"><span>' + rotulo + '</span><input data-l="' + campo + '" inputmode="decimal" placeholder="0,00" value="' + R.esc(valor) + '"></label>';
+};
+
+R.itensAtivos = function (tipo) {
+  return (R.cad.itens || []).filter(function (i) { return i.ativo && (!tipo || i.tipo === tipo); });
+};
+
+R.opcoesCategoria = function (atual) {
+  var cats = (R.cad.plano || []).filter(function (c) { return c.tipo === 'A' && c.ativa && (c.uso === 'compra' || c.uso === 'investimento'); });
+  var grupos = [['5', 'Custos de produção'], ['6', 'Despesas'], ['1', 'Investimentos (máquinas, benfeitorias)']];
+  return '<option value="">Selecione</option>' + grupos.map(function (g) {
+    var cs = cats.filter(function (c) { return c.id.charAt(0) === g[0]; });
+    return cs.length ? '<optgroup label="' + g[1] + '">' + cs.map(function (c) {
+      return '<option value="' + R.esc(c.id) + '"' + (c.id === atual ? ' selected' : '') + '>' + R.esc(c.nome) + '</option>';
+    }).join('') + '</optgroup>' : '';
+  }).join('');
+};
+
+R.renderItens = function () {
+  var L = R.L, venda = L.tipo === 'venda';
+  var disponiveis = venda ? R.itensAtivos('produto') : R.itensAtivos();
+  var opcoes = function (atual) {
+    if (venda) return disponiveis.map(function (i) { return R.opcaoItem(i, atual); }).join('');
+    return R.TIPOS_ITEM.map(function (t) {
+      var g = disponiveis.filter(function (i) { return i.tipo === t[0]; });
+      return g.length ? '<optgroup label="' + t[1] + '">' + g.map(function (i) { return R.opcaoItem(i, atual); }).join('') + '</optgroup>' : '';
+    }).join('');
+  };
+  R.el('lcItens').innerHTML = L.itens.map(function (li, i) {
+    var it = R.porId(R.cad.itens, li.itemId);
+    return '<div class="linha-item" data-linha="' + i + '"><div class="linha-topo"><b>Item ' + (i + 1) + '</b>' +
+      (L.itens.length > 1 ? '<button type="button" class="btn link" data-act="removerLinha" data-i="' + i + '">Remover</button>' : '') + '</div>' +
+      '<label class="campo"><span class="sr">Item ' + (i + 1) + '</span><select data-li="' + i + '" data-lc="itemId"><option value="">Selecione o item</option>' + opcoes(li.itemId) + '</select></label>' +
+      '<div class="botoes" style="margin:-6px 0 6px"><button type="button" class="btn link" data-act="novoItemLanc" data-i="' + i + '">+ Cadastrar item novo</button></div>' +
+      '<div class="grade3">' +
+      '<label class="campo"><span>Quantidade' + (it ? ' (' + R.esc(it.unidade) + ')' : '') + '</span><input data-li="' + i + '" data-lc="qtd" inputmode="decimal" value="' + R.esc(li.qtd) + '"></label>' +
+      '<label class="campo"><span>Valor unitário</span><input data-li="' + i + '" data-lc="vu" inputmode="decimal" placeholder="0,00" value="' + R.esc(li.vu) + '"></label>' +
+      '<label class="campo"><span>Total do item</span><input data-li="' + i + '" data-lc="vt" inputmode="decimal" placeholder="0,00" value="' + R.esc(li.vt) + '"></label>' +
+      '</div><div class="erro-linha" id="erroLinha' + i + '"></div></div>';
+  }).join('') + (disponiveis.length ? '' : '<div class="alerta aviso">Nenhum item ' + (venda ? 'do tipo "Produto que vendo" ' : '') + 'cadastrado ainda. Use "Cadastrar item novo".</div>');
+};
+
+R.opcaoItem = function (i, atual) {
+  return '<option value="' + R.esc(i.id) + '"' + (i.id === atual ? ' selected' : '') + '>' + R.esc(i.nome + ' (' + i.unidade + ')') + '</option>';
+};
+
+R.renderPagto = function () {
+  var L = R.L, compraCartao = L.tipo === 'compra' && L.formaPagamento === 'cartao_credito';
+  var html = '<label class="campo"><span>Forma de pagamento</span><select data-l="formaPagamento">' + R.opcoes(R.FORMAS, L.formaPagamento, 'Selecione') + '</select></label>' +
+    '<div class="seg" role="radiogroup" aria-label="Condição">' +
+    '<button type="button" role="radio" data-act="condicao" data-v="vista" aria-checked="' + (L.condicao === 'vista') + '"' + (L.condicao === 'vista' ? ' class="ativo"' : '') + '>À vista</button>' +
+    '<button type="button" role="radio" data-act="condicao" data-v="prazo" aria-checked="' + (L.condicao === 'prazo') + '"' + (L.condicao === 'prazo' ? ' class="ativo"' : '') + '>A prazo</button></div>';
+  if (L.condicao === 'vista' && !compraCartao) {
+    html += '<label class="campo"><span>' + (L.tipo === 'compra' ? 'Saiu de qual conta?' : 'Entrou em qual conta?') + '</span><select data-l="contaFinanceiraId"><option value="">Selecione</option>' +
+      (R.cad.contas || []).filter(function (c) { return c.ativa; }).map(function (c) {
+        return '<option value="' + R.esc(c.id) + '"' + (c.id === L.contaFinanceiraId ? ' selected' : '') + '>' + R.esc(c.nome) + '</option>';
+      }).join('') + '</select></label>';
+  }
+  if (compraCartao && L.condicao === 'vista') html += '<p class="muted">Compra no cartão de crédito: o valor fica como dívida do cartão até o pagamento da fatura.</p>';
+  if (L.condicao === 'prazo') {
+    html += '<div class="grade2"><label class="campo"><span>Número de parcelas</span><input type="number" min="1" max="60" data-l="nParcelas" value="' + R.esc(L.nParcelas) + '"></label>' +
+      '<label class="campo"><span>1º vencimento</span><input type="date" data-l="primeiroVenc" value="' + R.esc(L.primeiroVenc) + '"></label></div>' +
+      '<div id="lcParcelas"></div>';
+  }
+  R.el('lcPagto').innerHTML = html;
+  if (L.condicao === 'prazo') { if (!L.parcelasManual || !L.parcelas.length) R.gerarParcelas(); R.renderParcelas(); }
+};
+
+R.gerarParcelas = function () {
+  var L = R.L, n = Math.max(1, Math.min(60, parseInt(L.nParcelas, 10) || 1)), total = R.paraCentavos(L.total);
+  var base = isFinite(total) && total > 0 ? Math.floor(total / n) : 0, resto = isFinite(total) && total > 0 ? total - base * n : 0;
+  L.parcelas = [];
+  for (var i = 0; i < n; i++) {
+    L.parcelas.push({ venc: L.primeiroVenc ? R.somarMeses(L.primeiroVenc, i) : '', valor: base ? R.centCampo(base + (i === n - 1 ? resto : 0)) : '' });
+  }
+  L.parcelasManual = false;
+};
+
+R.renderParcelas = function () {
+  var c = R.el('lcParcelas');
+  if (!c) return;
+  c.innerHTML = R.L.parcelas.map(function (p, i) {
+    return '<div class="grade2 parcela"><label class="campo"><span>Parcela ' + (i + 1) + ' – vencimento</span><input type="date" data-pi="' + i + '" data-pc="venc" value="' + R.esc(p.venc) + '"></label>' +
+      '<label class="campo"><span>Valor</span><input data-pi="' + i + '" data-pc="valor" inputmode="decimal" placeholder="0,00" value="' + R.esc(p.valor) + '"></label></div>';
+  }).join('') + (R.L.parcelasManual ? '<div class="botoes"><button type="button" class="btn link" data-act="redistribuir">Dividir o total em partes iguais de novo</button></div>' : '');
+};
+
+// ---------- Cálculos e travas na tela (o servidor confere tudo de novo) ----------
+R.calcLanc = function () {
+  var L = R.L, falta = [], erroLinha = {};
+  var soma = 0, itensValidos = 0;
+  L.itens.forEach(function (li, i) {
+    var n = 'Item ' + (i + 1) + ': ', q = R.parseNum(li.qtd), vu = R.parseNum(li.vu), vt = R.paraCentavos(li.vt), msgs = [];
+    var it = R.porId(R.cad.itens, li.itemId);
+    if (!it) msgs.push('selecione o item');
+    else if (L.tipo === 'venda' && it.tipo !== 'produto') msgs.push('na venda, use só produtos que você vende');
+    if (!(q > 0)) msgs.push('informe a quantidade');
+    if (!(vu > 0)) msgs.push('informe o valor unitário');
+    if (!(vt > 0)) msgs.push('informe o total do item');
+    else soma += vt;
+    if (q > 0 && vu > 0 && vt > 0 && Math.abs(Math.round(q * vu * 100) - vt) > 5) msgs.push('quantidade × valor unitário dá ' + R.fmtR(Math.round(q * vu * 100)));
+    if (msgs.length) { erroLinha[i] = msgs.join('; '); falta.push(n + msgs.join('; ') + '.'); } else itensValidos++;
+  });
+  if (!L.itens.length) falta.push('Inclua pelo menos um item.');
+  var frete = L.frete ? R.paraCentavos(L.frete) : 0, acr = L.acrescimos ? R.paraCentavos(L.acrescimos) : 0, desc = L.desconto ? R.paraCentavos(L.desconto) : 0;
+  [[frete, 'frete'], [acr, 'acréscimos'], [desc, 'desconto']].forEach(function (x) { if (!isFinite(x[0])) falta.push('Valor inválido em ' + x[1] + '.'); });
+  var total = R.paraCentavos(L.total), calculado = soma + (frete || 0) + (acr || 0) - (desc || 0);
+  if (!(total > 0)) falta.push('Informe o valor total da nota.');
+  var diff = total > 0 ? total - calculado : NaN;
+  if (total > 0 && diff !== 0) falta.push('A soma não bate com o total da nota (diferença de ' + R.fmtR(Math.abs(diff)) + ').');
+  if (!L.formaPagamento) falta.push('Selecione a forma de pagamento.');
+  if (L.data < R.empresa.dataInicio) falta.push('A data não pode ser anterior a ' + R.fmtData(R.empresa.dataInicio) + '.');
+  var somaP = 0;
+  if (L.condicao === 'prazo') {
+    L.parcelas.forEach(function (p, i) {
+      var v = R.paraCentavos(p.valor);
+      if (!p.venc) falta.push('Parcela ' + (i + 1) + ': informe o vencimento.');
+      else if (p.venc < L.data) falta.push('Parcela ' + (i + 1) + ': o vencimento é antes da data.');
+      if (!(v > 0)) falta.push('Parcela ' + (i + 1) + ': informe o valor.'); else somaP += v;
+    });
+    if (total > 0 && somaP !== total) falta.push('A soma das parcelas (' + R.fmtR(somaP) + ') é diferente do total (diferença de ' + R.fmtR(Math.abs(total - somaP)) + ').');
+  } else if (!(L.tipo === 'compra' && L.formaPagamento === 'cartao_credito') && !L.contaFinanceiraId) falta.push('Selecione o caixa ou banco.');
+  if (L.tipo === 'compra' && !L.categoriaId) falta.push('Selecione a categoria.');
+  return { soma: soma, frete: frete, acr: acr, desc: desc, calculado: calculado, total: total, diff: diff, falta: falta, erroLinha: erroLinha };
+};
+
+R.atualizarLanc = function () {
+  var c = R.calcLanc(), conf = R.el('lcConf');
+  if (!conf) return;
+  var ok = c.total > 0 && c.diff === 0;
+  conf.innerHTML = '<table class="conf"><tr><td>Soma dos itens</td><td>' + R.fmtR(c.soma) + '</td></tr>' +
+    (c.frete ? '<tr><td>+ Frete</td><td>' + R.fmtR(c.frete) + '</td></tr>' : '') +
+    (c.acr ? '<tr><td>+ Acréscimos</td><td>' + R.fmtR(c.acr) + '</td></tr>' : '') +
+    (c.desc ? '<tr><td>− Desconto</td><td>' + R.fmtR(c.desc) + '</td></tr>' : '') +
+    '<tr class="forte"><td>Calculado</td><td>' + R.fmtR(c.calculado) + '</td></tr>' +
+    '<tr><td>Total da nota</td><td>' + (c.total > 0 ? R.fmtR(c.total) : '—') + '</td></tr>' +
+    '<tr class="' + (ok ? 'bate' : 'naobate') + '"><td>' + (ok ? 'Confere' : 'Diferença') + '</td><td>' + (ok ? '✓' : (c.total > 0 ? R.fmtR(Math.abs(c.diff)) : '—')) + '</td></tr></table>' +
+    (!(c.total > 0) && c.calculado > 0 ? '<button type="button" class="btn link" data-act="usarSoma">Não tenho nota: usar a soma calculada como total</button>' : '');
+  R.L.itens.forEach(function (li, i) {
+    var e = R.el('erroLinha' + i);
+    if (e) e.textContent = c.erroLinha[i] && (li.itemId || li.qtd || li.vu || li.vt) ? 'Falta: ' + c.erroLinha[i] + '.' : '';
+  });
+  var bt = R.el('btSalvarLanc');
+  bt.disabled = c.falta.length > 0;
+  R.el('lcFalta').innerHTML = c.falta.length ? '<div class="alerta aviso"><b>Para salvar, falta:</b><ul>' + c.falta.map(function (f) { return '<li>' + R.esc(f) + '</li>'; }).join('') + '</ul></div>' : '';
+  if (R.L.tipo === 'venda') {
+    var av = R.el('avisoCliente');
+    if (av) av.innerHTML = R.L.pessoaId ? '<div class="alerta aviso">Venda para cliente cadastrado: ela fica aguardando a nota fiscal e só entra no faturamento quando a nota for registrada.</div>' : '';
+  }
+  R.salvarRascunho();
+};
+
+// ---------- Eventos dos campos ----------
+R.aoMudarCampo = function (el) {
+  var L = R.L;
+  if (el.dataset.l) {
+    var k = el.dataset.l, v = el.value;
+    if (k === 'pessoaTexto') {
+      var f = (R.cad.fornecedores || []).filter(function (x) { return x.ativo && x.nome.trim().toLowerCase() === v.trim().toLowerCase(); })[0];
+      L.pessoaId = f ? f.id : '';
+      L.pessoaNome = f ? f.nome : v;
+      var sug = f && R.cad.sugestoes ? R.cad.sugestoes[f.id] : '';
+      if (sug && (!L.categoriaId || L.catSugerida) && R.porId(R.cad.plano, sug) && R.porId(R.cad.plano, sug).ativa) {
+        L.categoriaId = sug; L.catSugerida = true;
+        var sel = document.querySelector('[data-l=categoriaId]');
+        if (sel) sel.value = sug;
+        R.el('catSug').hidden = false;
+      }
+    } else {
+      L[k] = v;
+      if (k === 'categoriaId') { L.catSugerida = false; R.el('catSug').hidden = true; }
+      if (k === 'formaPagamento') { R.renderPagto(); }
+      if (k === 'total' && L.condicao === 'prazo' && !L.parcelasManual) { R.gerarParcelas(); R.renderParcelas(); }
+      if (k === 'primeiroVenc' || (k === 'nParcelas' && parseInt(v, 10) > 0)) { R.gerarParcelas(); R.renderParcelas(); }
+      if (k === 'data' && !L.parcelasManual && !L.id) { L.primeiroVenc = v ? R.somarMeses(v, 1) : ''; if (L.condicao === 'prazo') R.renderPagto(); }
+    }
+  } else if (el.dataset.li !== undefined) {
+    var i = Number(el.dataset.li), li = L.itens[i], c = el.dataset.lc;
+    li[c] = el.value;
+    if (c === 'vt') li.vtManual = el.value.trim() !== '';
+    if (c === 'itemId') {
+      var it = R.porId(R.cad.itens, el.value);
+      if (it && !li.vu && it.precoSugerido) li.vu = R.centCampo(it.precoSugerido);
+      R.renderItens();
+    }
+    if ((c === 'qtd' || c === 'vu' || c === 'itemId') && !li.vtManual) {
+      var q = R.parseNum(li.qtd), vu = R.parseNum(li.vu);
+      li.vt = q > 0 && vu > 0 ? R.centCampo(Math.round(q * vu * 100)) : '';
+      var campoVt = document.querySelector('[data-li="' + i + '"][data-lc="vt"]');
+      if (campoVt) campoVt.value = li.vt;
+    }
+  } else if (el.dataset.pi !== undefined) {
+    L.parcelas[Number(el.dataset.pi)][el.dataset.pc] = el.value;
+    if (!L.parcelasManual) { L.parcelasManual = true; R.renderParcelas(); var foco = document.querySelector('[data-pi="' + el.dataset.pi + '"][data-pc="' + el.dataset.pc + '"]'); if (foco) foco.focus(); }
+  } else return;
+  R.atualizarLanc();
+};
+
+['input', 'change'].forEach(function (tipo) {
+  document.addEventListener(tipo, function (ev) {
+    var el = ev.target;
+    if (!el.closest || !el.closest('#formLanc')) return;
+    if (tipo === 'input' && el.tagName === 'SELECT') return;
+    if (tipo === 'change' && el.tagName !== 'SELECT' && el.type !== 'date' && el.type !== 'number') return;
+    R.aoMudarCampo(el);
+  });
+});
+
+R.acoes.condicao = function (el) {
+  R.L.condicao = el.dataset.v;
+  R.renderPagto();
+  R.atualizarLanc();
+};
+R.acoes.redistribuir = function () { R.gerarParcelas(); R.renderParcelas(); R.atualizarLanc(); };
+R.acoes.addLinha = function () { R.L.itens.push(R.novaLinha()); R.renderItens(); R.atualizarLanc(); };
+R.acoes.removerLinha = function (el) { R.L.itens.splice(Number(el.dataset.i), 1); R.renderItens(); R.atualizarLanc(); };
+R.acoes.usarSoma = function () {
+  var c = R.calcLanc();
+  R.L.total = R.centCampo(c.calculado);
+  document.querySelector('[data-l=total]').value = R.L.total;
+  if (R.L.condicao === 'prazo' && !R.L.parcelasManual) { R.gerarParcelas(); R.renderParcelas(); }
+  R.atualizarLanc();
+};
+R.acoes.cancelarLanc = function () {
+  if (!R.L.id && !confirm('Descartar este lançamento?')) return;
+  R.guardar(R.chaveRascunho(), '');
+  var voltar = R.L.id ? R.porId(R.lancs || [], R.L.id) : null;
+  R.L = null;
+  if (voltar) R.ir('detalheLanc', voltar); else R.ir('inicio');
+};
+
+// Cadastro rápido sem perder o que já foi digitado.
+R.acoes.novoItemLanc = function (el) {
+  R.retorno = { campo: 'item', idx: Number(el.dataset.i), tipoItem: R.L.tipo === 'venda' ? 'produto' : 'insumo' };
+  R.ir('formItem', {});
+};
+R.acoes.novoClienteLanc = function () { R.retorno = { campo: 'cliente' }; R.ir('formCliente', {}); };
+R.voltarAoLancamento = function (reg) {
+  var rt = R.retorno;
+  R.retorno = null;
+  if (reg && rt.campo === 'item' && R.L.itens[rt.idx]) {
+    var li = R.L.itens[rt.idx];
+    li.itemId = reg.id;
+    if (!li.vu && reg.precoSugerido) li.vu = R.centCampo(reg.precoSugerido);
+  }
+  if (reg && rt.campo === 'cliente') R.L.pessoaId = reg.id;
+  R.ir('lancar');
+};
+
+R.forms.lanc = function (d, form) {
+  var L = R.L, c = R.calcLanc();
+  if (c.falta.length) return Promise.reject(new Error(c.falta[0]));
+  var payload = {
+    id: L.id, tipo: L.tipo, data: L.data, pessoaId: L.pessoaId, pessoaNome: L.pessoaId ? '' : L.pessoaNome, formaPagamento: L.formaPagamento,
+    condicao: L.condicao, contaFinanceiraId: L.contaFinanceiraId, categoriaId: L.categoriaId, destinoId: L.destinoId,
+    itens: L.itens.map(function (li) { return { itemId: li.itemId, quantidade: R.parseNum(li.qtd), valorUnitario: R.parseNum(li.vu), valorTotal: R.paraCentavos(li.vt) }; }),
+    frete: c.frete || 0, acrescimos: c.acr || 0, desconto: c.desc || 0, total: c.total,
+    parcelas: L.condicao === 'prazo' ? L.parcelas.map(function (p) { return { vencimento: p.venc, valor: R.paraCentavos(p.valor) }; }) : [],
+    observacao: L.observacao
+  };
+  return R.exec('salvarLancamento', { empresaId: R.empresa.id, lancamento: payload }).then(function (r) {
+    R.guardar(R.chaveRascunho(), '');
+    R.cad.fornecedores = r.fornecedores;
+    R.cad.sugestoes = r.sugestoes;
+    R.L = null;
+    R.mesLanc = r.lancamento.data.slice(0, 7);
+    R.toast(r.lancamento.tipo === 'compra' ? 'Compra salva.' : 'Venda salva.');
+    R.ir('lancamentos', { abrir: r.lancamento.id });
+  });
+};
+
+/* Lista do mês e detalhe de cada lançamento. */
+R.mesLanc = '';
+
+R.STATUS_LANC = { lancado: ['Lançado', ''], aguardando_nota: ['Aguardando nota', 'alerta-selo'] };
+
+R.carregarMes = function (mes) {
+  return R.exec('listarLancamentos', { empresaId: R.empresa.id, mes: mes }).then(function (r) { R.lancs = r.lancamentos; return r.lancamentos; });
+};
+
+R.resumoMes = function (lancs) {
+  var s = { compras: 0, vendas: 0, aguardando: 0, nCompras: 0, nVendas: 0 };
+  lancs.forEach(function (l) {
+    if (l.tipo === 'compra') { s.compras += l.total; s.nCompras++; }
+    else if (l.status === 'aguardando_nota') s.aguardando++;
+    else { s.vendas += l.total; s.nVendas++; }
+  });
+  return s;
+};
+
+R.telas.lancamentos = function (d) {
+  if (!R.mesLanc) R.mesLanc = R.hoje().slice(0, 7);
+  return R.carregarMes(R.mesLanc).then(function (lancs) {
+    if (d && d.abrir) { var l = R.porId(lancs, d.abrir); if (l) { R.ir('detalheLanc', l); return; } }
+    var s = R.resumoMes(lancs);
+    R.pintar('<div class="titulo-linha"><h1>Lançamentos</h1></div>' +
+      '<div class="mes-nav"><button class="btn" data-act="mesLanc" data-d="-1" aria-label="Mês anterior">‹</button><b>' + R.nomeMes(R.mesLanc) + '</b>' +
+      '<button class="btn" data-act="mesLanc" data-d="1" aria-label="Próximo mês">›</button></div>' +
+      '<div class="cards"><div class="kpi"><span>Compras e despesas</span><b>' + R.fmtR(s.compras) + '</b><small>' + s.nCompras + ' lançamento(s)</small></div>' +
+      '<div class="kpi"><span>Vendas lançadas</span><b>' + R.fmtR(s.vendas) + '</b><small>' + s.nVendas + ' venda(s)' + (s.aguardando ? ' · ' + s.aguardando + ' aguardando nota' : '') + '</small></div></div>' +
+      '<div class="botoes acoes-lanc"><button class="btn primario" data-act="novaCompra">+ Compra ou despesa</button><button class="btn primario" data-act="novaVenda">+ Venda</button></div>' +
+      (lancs.length ? lancs.map(R.cartaoLanc).join('') : '<div class="card"><p class="muted">Nenhum lançamento neste mês.</p></div>'));
+  });
+};
+
+R.cartaoLanc = function (l) {
+  var st = R.STATUS_LANC[l.status] || [l.status, ''];
+  var nome = l.pessoaNome || (l.tipo === 'venda' ? 'Consumidor não identificado' : 'Sem fornecedor');
+  var itens = l.itens.map(function (i) { var it = R.porId(R.cad.itens, i.itemId); return it ? it.nome : '?'; }).join(', ');
+  return '<button class="item lanc ' + l.tipo + '" data-act="abrirLanc" data-id="' + R.esc(l.id) + '"><div class="lanc-linha"><b>' + R.esc(nome) + '</b>' +
+    '<b class="valor">' + (l.tipo === 'compra' ? '− ' : '+ ') + R.fmtR(l.total) + '</b></div>' +
+    '<small>' + R.fmtData(l.data) + ' · ' + (l.tipo === 'compra' ? 'Compra' : 'Venda') + ' · ' + R.esc(R.rotulo(R.FORMAS, l.formaPagamento)) + (l.condicao === 'prazo' ? ' · ' + l.parcelas.length + 'x' : '') + '</small>' +
+    '<small>' + R.esc(itens) + '</small>' + (st[1] ? '<span class="selo ' + st[1] + '">' + st[0] + '</span>' : '') + '</button>';
+};
+
+R.acoes.mesLanc = function (el) {
+  var p = R.mesLanc.split('-').map(Number), d = new Date(p[0], p[1] - 1 + Number(el.dataset.d), 1);
+  R.mesLanc = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  R.ir('lancamentos');
+};
+R.acoes.abrirLanc = function (el) { R.ir('detalheLanc', R.porId(R.lancs, el.dataset.id)); };
+R.acoes.voltarLancs = function () { R.ir('lancamentos'); };
+
+R.telas.detalheLanc = function (l) {
+  var conta = R.porId(R.cad.contas, l.contaFinanceiraId), cat = R.porId(R.cad.plano, l.categoriaId), dest = R.porId(R.cad.itens, l.destinoId);
+  var st = R.STATUS_LANC[l.status] || [l.status, ''];
+  var html = '<div class="titulo-linha"><h1>' + (l.tipo === 'compra' ? 'Compra' : 'Venda') + ' de ' + R.fmtData(l.data) + '</h1></div>' +
+    '<div class="card destaque"><div class="lanc-linha"><b>' + R.esc(l.pessoaNome || (l.tipo === 'venda' ? 'Consumidor não identificado' : 'Sem fornecedor')) + '</b><b>' + R.fmtR(l.total) + '</b></div>' +
+    '<span class="selo ' + st[1] + '">' + st[0] + '</span>' +
+    (l.status === 'aguardando_nota' ? '<p class="muted">Esta venda entra no faturamento quando a nota fiscal for registrada (próxima fase do sistema).</p>' : '') +
+    '<dl class="dados" style="margin-top:10px"><dt>Pagamento</dt><dd>' + R.esc(R.rotulo(R.FORMAS, l.formaPagamento)) + ' · ' + (l.condicao === 'prazo' ? 'a prazo' : 'à vista') + '</dd>' +
+    (conta ? '<dt>' + (l.tipo === 'compra' ? 'Saiu de' : 'Entrou em') + '</dt><dd>' + R.esc(conta.nome) + '</dd>' : '') +
+    (cat ? '<dt>Categoria</dt><dd>' + R.esc(cat.nome) + '</dd>' : '') +
+    (l.tipo === 'compra' ? '<dt>Para</dt><dd>' + (dest ? R.esc(dest.nome) : 'Geral da propriedade') + '</dd>' : '') +
+    (l.observacao ? '<dt>Observação</dt><dd>' + R.esc(l.observacao) + '</dd>' : '') + '</dl></div>';
+  html += '<div class="card"><h2>Itens</h2><table class="tabela"><thead><tr><th>Item</th><th>Qtd.</th><th>Unit.</th><th>Total</th></tr></thead><tbody>' +
+    l.itens.map(function (i) {
+      var it = R.porId(R.cad.itens, i.itemId);
+      return '<tr><td>' + R.esc(it ? it.nome : '?') + '</td><td>' + R.fmtNum(i.quantidade) + ' ' + R.esc(it ? it.unidade : '') + '</td><td>' + R.fmtR(Math.round(i.valorUnitario * 100)) + '</td><td>' + R.fmtR(i.valorTotal) + '</td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<table class="conf"><tr><td>Itens</td><td>' + R.fmtR(l.valorItens) + '</td></tr>' +
+    (l.frete ? '<tr><td>+ Frete</td><td>' + R.fmtR(l.frete) + '</td></tr>' : '') + (l.acrescimos ? '<tr><td>+ Acréscimos</td><td>' + R.fmtR(l.acrescimos) + '</td></tr>' : '') +
+    (l.desconto ? '<tr><td>− Desconto</td><td>' + R.fmtR(l.desconto) + '</td></tr>' : '') + '<tr class="forte"><td>Total</td><td>' + R.fmtR(l.total) + '</td></tr></table></div>';
+  if (l.parcelas.length) {
+    html += '<div class="card"><h2>Parcelas</h2><table class="tabela"><tbody>' + l.parcelas.map(function (p) {
+      return '<tr><td>' + p.numero + 'ª</td><td>' + R.fmtData(p.vencimento) + '</td><td>' + R.fmtR(p.valor) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+  if (l.partidas) {
+    html += '<div class="card"><h2>Contabilização</h2>' + (l.partidas.length ? '<table class="tabela"><thead><tr><th>Conta</th><th>Débito</th><th>Crédito</th></tr></thead><tbody>' +
+      l.partidas.map(function (p) {
+        var c = R.porId(R.cad.plano, p.contaId), it = R.porId(R.cad.itens, p.itemId);
+        return '<tr><td>' + R.esc(p.contaId + ' ' + (c ? c.nome : '')) + (it ? '<br><small class="muted">' + R.esc(it.nome) + '</small>' : '') + '</td><td>' + (p.debito ? R.fmtR(p.debito) : '') + '</td><td>' + (p.credito ? R.fmtR(p.credito) : '') + '</td></tr>';
+      }).join('') + '</tbody></table>' : '<p class="muted">Ainda não contabilizado.</p>') + '</div>';
+  }
+  html += '<div class="botoes"><button class="btn" data-act="voltarLancs">Voltar</button><button class="btn" data-act="editarLanc" data-id="' + R.esc(l.id) + '">Editar</button>' +
+    '<button class="btn perigo" data-act="excluirLanc" data-id="' + R.esc(l.id) + '">Excluir</button></div>';
+  R.pintar(html);
+};
+
+R.acoes.editarLanc = function (el) { R.ir('lancar', { editar: R.porId(R.lancs, el.dataset.id) }); };
+R.acoes.excluirLanc = function (el) {
+  if (!confirm('Excluir este lançamento? Os valores saem dos relatórios.')) return;
+  return R.exec('excluirLancamento', { empresaId: R.empresa.id, id: el.dataset.id }).then(function () {
+    R.toast('Lançamento excluído.');
+    R.ir('lancamentos');
+  });
+};
+
 /* Moldura do app (topo e navegação) e inicialização. */
 var ICONES_R = {
   inicio: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
-  empresas: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/>',
-  usuarios: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-4 3.2-6 6.5-6s5.800 2 6.500 6M16 4.800a3.500 3.500 0 0 1 0 6.400M18.500 14.500c1.700.8 2.700 2.600 3 5.500"/>',
+  lancamentos: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+  cadastros: '<path d="M4 7l8-4 8 4-8 4z"/><path d="M4 12l8 4 8-4M4 17l8 4 8-4"/>',
+  escritorio: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/>',
   conta: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>'
 };
 
-var TELAS_COM_NAV_R = { inicio: 'inicio', empresas: 'empresas', formEmpresa: 'empresas', usuarios: 'usuarios', formUsuario: 'usuarios', senhaGerada: 'usuarios', conta: 'conta', escolher: '', semEmpresa: '' };
+// Tela -> item da barra de navegação que fica destacado
+var TELAS_COM_NAV_R = {
+  inicio: 'inicio', lancamentos: 'lancamentos', detalheLanc: 'lancamentos', lancar: 'lancamentos',
+  cadastros: 'cadastros', formItem: 'cadastros', formCliente: 'cadastros', formFornecedor: 'cadastros', formContaFin: 'cadastros',
+  escritorio: 'escritorio', plano: 'escritorio', formConta: 'escritorio', empresas: 'escritorio', formEmpresa: 'escritorio',
+  usuarios: 'escritorio', formUsuario: 'escritorio', senhaGerada: 'escritorio', conta: 'conta', escolher: '', semEmpresa: ''
+};
 
 R.atualizarMoldura = function () {
   var logado = !!R.usuario && !R.usuario.trocarSenha;
@@ -575,15 +1345,13 @@ R.atualizarMoldura = function () {
   R.el('topo').hidden = !logado;
   nav.hidden = !logado;
   var troca = R.el('trocaEmpresa');
-  troca.hidden = !logado || !R.empresa || R.empresas.length < 2;
-  if (logado && R.empresa) {
-    R.el('marca').textContent = R.empresa.nome;
-    troca.textContent = 'Trocar empresa';
-  } else R.el('marca').textContent = 'Sistema Rural';
+  troca.hidden = !logado || !R.empresas.length || (R.empresa && R.empresas.length < 2) || R.tela === 'escolher';
+  troca.textContent = R.empresa ? 'Trocar empresa' : 'Abrir empresa';
+  R.el('marca').textContent = logado && R.empresa ? R.empresa.nome : 'Sistema Rural';
   if (!logado) return;
   var itens = [];
-  if (R.empresa) itens.push(['inicio', 'Início']);
-  if (R.usuario.perfil === 'contador') itens.push(['empresas', 'Empresas'], ['usuarios', 'Usuários']);
+  if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['cadastros', 'Cadastros']);
+  if (R.usuario.perfil === 'contador') itens.push(['escritorio', 'Escritório']);
   itens.push(['conta', 'Conta']);
   nav.innerHTML = itens.map(function (i) {
     return '<button data-act="nav" data-tela="' + i[0] + '"' + (secao === i[0] ? ' class="ativo" aria-current="page"' : '') + '>' +
@@ -591,7 +1359,10 @@ R.atualizarMoldura = function () {
   }).join('');
 };
 
-R.acoes.nav = function (el) { R.ir(el.dataset.tela); };
+R.acoes.nav = function (el) {
+  if (R.tela === 'lancar' && R.L && !confirm('Sair do lançamento? O que já foi digitado fica guardado como rascunho.')) return;
+  R.ir(el.dataset.tela);
+};
 
 R.iniciar = function () {
   R.token = R.ler('rural_sessao');
