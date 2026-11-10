@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "f9b9b8645ae9";</script>
+<script>window.R_VERSAO = "cc4d9a667d6f";</script>
 
 <style>
 :root {
@@ -219,6 +219,31 @@ table.mov-fluxo td:first-child { white-space: nowrap; }
 /* ---------- Velocidade ---------- */
 #atualizando { flex: none; font-size: .78rem; background: rgba(255, 255, 255, .18); padding: 3px 8px; border-radius: 99px; }
 
+/* ---------- Fase 4: relatórios ---------- */
+.periodo { margin-bottom: 4px; }
+table.dre { width: 100%; border-collapse: collapse; font-size: .93rem; }
+table.dre td { padding: 5px 2px; border-bottom: 1px solid var(--borda); }
+table.dre td:last-child { text-align: right; white-space: nowrap; }
+table.dre tr.g td { font-weight: 700; padding-top: 10px; }
+table.dre tr.c td:first-child { padding-left: 16px; color: var(--muted); }
+table.dre tr.s td { font-weight: 700; background: var(--pri-claro); }
+table.dre tr.s.forte td { font-size: 1.05rem; }
+.neg { color: var(--erro); }
+.pos { color: var(--ok); }
+tr.total td { font-weight: 700; border-top: 2px solid var(--borda); }
+.produto-margem .lanc-linha b:last-child { font-size: 1.1rem; }
+table.balancete tr.sint td { font-weight: 700; }
+table.balancete tr.sint.n1 td { background: var(--pri-claro); }
+table.balancete .cod { color: var(--muted); font-family: Consolas, Menlo, monospace; font-size: .8rem; }
+@media (max-width: 560px) { table.balancete { font-size: .74rem; } table.balancete td, table.balancete th { padding: 4px 2px; } }
+.so-impressao { display: none; }
+@media print {
+  .so-impressao { display: block; }
+  .rolagem { overflow: visible; }
+  .card { border: 0; padding: 0; break-inside: avoid; }
+  table.dre, table.tabela { font-size: 9.5pt; }
+}
+
 </style>
 </head>
 <body>
@@ -367,7 +392,7 @@ R.chamar = function (acao, payload) {
 
 // Ações que só leem dados: as demais (gravações) apagam o que estava guardado nas telas.
 R.LEITURAS = ['ping', 'eu', 'abrirEmpresa', 'dadosEmpresa', 'listarLancamentos', 'listarAbertos', 'listarMovimentos', 'fluxoCaixa',
-  'listarNotas', 'abrirEspelho', 'listarEmpresas', 'listarUsuarios'];
+  'listarNotas', 'abrirEspelho', 'listarEmpresas', 'listarUsuarios', 'dadosRelatorios'];
 R.cacheDados = {};
 
 R.tratarErroSessao = function (e) {
@@ -926,15 +951,27 @@ R.forms.contaFin = function (d) {
   });
 };
 
-// ---------- Escritório (contador) ----------
-R.telas.escritorio = function () {
-  R.pintar('<h1>Escritório</h1><p class="muted">Ferramentas do contador.</p>' +
-    '<button class="item" data-act="nav" data-tela="plano"><b>Plano de contas</b><small>Contas e categorias da empresa aberta</small></button>' +
-    '<button class="item" data-act="nav" data-tela="empresas"><b>Empresas</b><small>Cadastrar e editar empresas</small></button>' +
-    '<button class="item" data-act="nav" data-tela="usuarios"><b>Usuários</b><small>Acessos e senhas temporárias</small></button>' +
-    '<button class="item" data-act="nav" data-tela="contaContador"><b>Minha conta</b><small>Trocar a senha e sair do sistema</small></button>' +
-    (R.empresa ? '<button class="item" data-act="nav" data-tela="velocidade"><b>Teste de velocidade</b><small>Mede quanto o servidor do Google demora em cada tela</small></button>' : ''));
+// ---------- Mais (cadastros, notas, conta e, para o contador, as ferramentas do escritório) ----------
+R.telas.mais = function () {
+  var contador = R.usuario.perfil === 'contador', e = R.empresa;
+  var item = function (tela, titulo, sub, act) {
+    return '<button class="item" data-act="' + (act || 'nav') + '" data-tela="' + tela + '"><b>' + titulo + '</b><small>' + sub + '</small></button>';
+  };
+  var html = '<h1>Mais</h1>';
+  if (e) {
+    html += item('cadastros', 'Cadastros', 'Itens, clientes, fornecedores, caixa e bancos, emitente') +
+      item('notas', 'Notas e espelhos', 'Espelhos para aprovação e registro das notas fiscais');
+  }
+  if (contador) {
+    html += '<h2 class="grupo">Escritório</h2>' +
+      (e ? item('plano', 'Plano de contas', 'Contas e categorias da empresa aberta') + item('fechamento', 'Fechamento de período', 'Bloqueia alterações nos meses já conferidos') : '') +
+      item('empresas', 'Empresas', 'Cadastrar e editar empresas') + item('usuarios', 'Usuários', 'Acessos e senhas temporárias') +
+      (e ? item('velocidade', 'Teste de velocidade', 'Mede quanto o servidor do Google demora em cada tela') : '');
+  }
+  html += '<h2 class="grupo">Conta</h2>' + item('conta', 'Minha conta', 'Trocar a senha e sair do sistema');
+  R.pintar(html);
 };
+R.telas.escritorio = function () { R.telas.mais(); };
 
 // ---------- Teste de velocidade (contador) ----------
 R.telas.velocidade = function () {
@@ -2064,13 +2101,462 @@ document.addEventListener('change', function (ev) {
   if (id === 'fluxoPrev') { R.fluxoCfg.previsto = ev.target.checked; R.renderFluxo(); }
 });
 
+/* Cálculos dos relatórios (DRE, balancete, faturamento e margem por produto).
+   Funções puras: recebem os dados e devolvem números em centavos. Usadas pelas telas e pelos testes.
+   Partida = [data, contaId, debito, credito, itemId, lancamentoId] */
+var Rel = {};
+
+Rel.grupoDre = function (conta) {
+  if (/^4\.1\./.test(conta)) return 'receita';
+  if (/^4\.9\./.test(conta)) return 'deducoes';
+  if (/^4\.2\./.test(conta)) return 'recFin';
+  if (/^5\./.test(conta)) return 'custos';
+  if (/^6\.2\./.test(conta)) return 'despFin';
+  if (/^6\./.test(conta)) return 'despesas';
+  return null;
+};
+
+Rel.noPeriodo = function (d, de, ate) { return d >= de && d <= ate; };
+
+// DRE (competência): valores positivos aumentam o resultado, negativos diminuem.
+Rel.dre = function (partidas, de, ate) {
+  var g = { receita: {}, deducoes: {}, custos: {}, despesas: {}, recFin: {}, despFin: {} };
+  partidas.forEach(function (p) {
+    if (!Rel.noPeriodo(p[0], de, ate)) return;
+    var grupo = Rel.grupoDre(p[1]);
+    if (!grupo) return;
+    g[grupo][p[1]] = (g[grupo][p[1]] || 0) + (p[3] - p[2]);
+  });
+  var soma = function (o) { return Object.keys(o).reduce(function (s, k) { return s + o[k]; }, 0); };
+  var t = {};
+  Object.keys(g).forEach(function (k) { t[k] = soma(g[k]); });
+  t.receitaLiquida = t.receita + t.deducoes;
+  t.lucroBruto = t.receitaLiquida + t.custos;
+  t.operacional = t.lucroBruto + t.despesas;
+  t.resultado = t.operacional + t.recFin + t.despFin;
+  return { contas: g, t: t };
+};
+
+// Resultado mês a mês (para o resumo do ano)
+Rel.resultadoPorMes = function (partidas, ano) {
+  var meses = [];
+  for (var m = 1; m <= 12; m++) {
+    var ym = ano + '-' + ('0' + m).slice(-2), d = Rel.dre(partidas, ym + '-01', ym + '-31');
+    meses.push({ mes: ym, receita: d.t.receitaLiquida, custosDespesas: d.t.custos + d.t.despesas + d.t.despFin + d.t.recFin, resultado: d.t.resultado });
+  }
+  return meses;
+};
+
+// Balancete: saldo anterior, débitos, créditos e saldo atual (positivo = devedor).
+Rel.balancete = function (partidas, plano, de, ate) {
+  var a = {};
+  partidas.forEach(function (p) {
+    if (p[0] > ate) return;
+    var x = a[p[1]] || (a[p[1]] = { anterior: 0, debito: 0, credito: 0 });
+    if (p[0] < de) x.anterior += p[2] - p[3];
+    else { x.debito += p[2]; x.credito += p[3]; }
+  });
+  var linhas = plano.map(function (c) {
+    var s = { anterior: 0, debito: 0, credito: 0 };
+    Object.keys(a).forEach(function (id) {
+      if (id === c.id || (c.tipo === 'S' && id.indexOf(c.id + '.') === 0)) { s.anterior += a[id].anterior; s.debito += a[id].debito; s.credito += a[id].credito; }
+    });
+    return { id: c.id, nome: c.nome, tipo: c.tipo, anterior: s.anterior, debito: s.debito, credito: s.credito, atual: s.anterior + s.debito - s.credito };
+  });
+  // contas que existem nas partidas mas não no plano (não deveria acontecer): aparecem no fim
+  Object.keys(a).forEach(function (id) {
+    if (!plano.some(function (c) { return c.id === id; })) linhas.push({ id: id, nome: '(conta não encontrada no plano)', tipo: 'A', anterior: a[id].anterior, debito: a[id].debito, credito: a[id].credito, atual: a[id].anterior + a[id].debito - a[id].credito });
+  });
+  var tot = { debito: 0, credito: 0 };
+  Object.keys(a).forEach(function (id) { tot.debito += a[id].debito; tot.credito += a[id].credito; });
+  return { linhas: linhas, totais: tot };
+};
+
+// Divide "total" (centavos) proporcionalmente às bases, fechando exatamente no total (maiores restos).
+Rel.ratear = function (total, bases) {
+  var ids = Object.keys(bases).filter(function (k) { return bases[k] > 0; });
+  var soma = ids.reduce(function (s, k) { return s + bases[k]; }, 0), out = {};
+  if (!total || !soma) return { partes: out, distribuido: 0 };
+  var sinal = total < 0 ? -1 : 1, abs = Math.abs(total), usado = 0;
+  var restos = ids.map(function (k) {
+    var exato = abs * bases[k] / soma, inteiro = Math.floor(exato);
+    out[k] = inteiro; usado += inteiro;
+    return [k, exato - inteiro];
+  }).sort(function (x, y) { return y[1] - x[1] || (x[0] < y[0] ? -1 : 1); });
+  for (var i = 0; usado < abs; i++, usado++) out[restos[i % restos.length][0]]++;
+  ids.forEach(function (k) { out[k] *= sinal; });
+  return { partes: out, distribuido: total };
+};
+
+// Faturamento e margem por produto.
+// itens: cadastro de itens; cfg: { custos, despesas, fatores, areas, metricas }
+Rel.produtos = function (dados, plano, itens, de, ate, cfg) {
+  cfg = cfg || {};
+  var produto = {};
+  itens.forEach(function (i) { if (i.tipo === 'produto') produto[i.id] = i; });
+  var contasVenda = plano.filter(function (c) { return c.uso === 'receita_vendas'; }).map(function (c) { return c.id; });
+  var por = {}, lancsPeriodo = {};
+  var P = function (id) { return por[id] || (por[id] = { id: id, receita: 0, qtd: 0, custosDiretos: 0, despesasDiretas: 0 }); };
+  var ind = { custos: 0, despesas: 0, deducoes: 0, outrasReceitas: 0, recFin: 0 };
+  dados.partidas.forEach(function (p) {
+    if (!Rel.noPeriodo(p[0], de, ate)) return;
+    var conta = p[1], item = produto[p[4]] ? p[4] : '', v = p[3] - p[2], g = Rel.grupoDre(conta);
+    if (!g) return;
+    if (g === 'receita') {
+      if (item && contasVenda.indexOf(conta) >= 0) { P(item).receita += v; lancsPeriodo[p[5]] = true; }
+      else ind.outrasReceitas += v;
+    } else if (g === 'deducoes') ind.deducoes += v;
+    else if (g === 'recFin') ind.recFin += v;
+    else if (g === 'custos') { if (item) P(item).custosDiretos += v; else ind.custos += v; }
+    else { if (item) P(item).despesasDiretas += v; else ind.despesas += v; } // despesas e despesas financeiras
+  });
+  Object.keys(lancsPeriodo).forEach(function (lid) {
+    (dados.itensVenda[lid] || []).forEach(function (x) { if (produto[x[0]]) P(x[0]).qtd += x[1]; });
+  });
+  // produtos que só têm área ou medida informada também entram (para o rateio por área/medida)
+  var temBase = function (o) { Object.keys(o || {}).forEach(function (id) { if (produto[id] && o[id] > 0) P(id); }); };
+  temBase(cfg.areas);
+  (cfg.metricas || []).forEach(function (m) { temBase(m.valores); });
+
+  var ids = Object.keys(por).sort(function (a, b) { return produto[a].nome.localeCompare(produto[b].nome, 'pt-BR'); });
+  var unidades = {};
+  ids.forEach(function (id) { if (por[id].qtd > 0) unidades[produto[id].unidade] = true; });
+  var semFator = ids.some(function (id) { return por[id].qtd > 0 && !(cfg.fatores && cfg.fatores[id] > 0); });
+  var avisoUnidades = Object.keys(unidades).length > 1 && semFator;
+
+  var bases = function (criterio) {
+    var b = {};
+    ids.forEach(function (id) {
+      if (criterio === 'receita') b[id] = Math.max(0, por[id].receita);
+      else if (criterio === 'quantidade') b[id] = por[id].qtd * ((cfg.fatores && cfg.fatores[id]) || 1);
+      else if (criterio === 'area') b[id] = (cfg.areas && cfg.areas[id]) || 0;
+      else if (/^m:/.test(criterio)) {
+        var m = (cfg.metricas || []).filter(function (x) { return 'm:' + x.id === criterio; })[0];
+        b[id] = m && m.valores[id] || 0;
+      }
+    });
+    return b;
+  };
+
+  var calcular = function (critCustos, critDespesas) {
+    var rCus = Rel.ratear(ind.custos, bases(critCustos)), rDes = Rel.ratear(ind.despesas, bases(critDespesas));
+    var porReceita = bases('receita');
+    var rDed = Rel.ratear(ind.deducoes, porReceita), rOut = Rel.ratear(ind.outrasReceitas, porReceita);
+    var linhas = ids.map(function (id) {
+      var x = por[id];
+      var l = {
+        id: id, nome: produto[id].nome, unidade: produto[id].unidade, qtd: x.qtd, receita: x.receita,
+        precoMedio: x.qtd > 0 ? Math.round(x.receita / x.qtd) : 0,
+        outrasReceitas: rOut.partes[id] || 0, deducoes: rDed.partes[id] || 0,
+        custosDiretos: x.custosDiretos, despesasDiretas: x.despesasDiretas,
+        custosRateados: rCus.partes[id] || 0, despesasRateadas: rDes.partes[id] || 0
+      };
+      l.receitaLiquida = l.receita + l.outrasReceitas + l.deducoes;
+      l.resultado = l.receitaLiquida + l.custosDiretos + l.despesasDiretas + l.custosRateados + l.despesasRateadas;
+      l.margem = l.receitaLiquida > 0 ? l.resultado / l.receitaLiquida : null;
+      return l;
+    });
+    var naoDistribuido = ind.recFin + (ind.custos - rCus.distribuido) + (ind.despesas - rDes.distribuido) +
+      (ind.deducoes - rDed.distribuido) + (ind.outrasReceitas - rOut.distribuido);
+    var total = linhas.reduce(function (s, l) { return s + l.resultado; }, 0) + naoDistribuido;
+    return { linhas: linhas, naoDistribuido: naoDistribuido, total: total,
+      semBase: { custos: ind.custos && !rCus.distribuido, despesas: ind.despesas && !rDes.distribuido } };
+  };
+
+  var criterios = ['receita', 'quantidade'];
+  if (Object.keys(cfg.areas || {}).some(function (k) { return cfg.areas[k] > 0; })) criterios.push('area');
+  (cfg.metricas || []).forEach(function (m) { criterios.push('m:' + m.id); });
+  var principal = calcular(cfg.custos || 'receita', cfg.despesas || 'receita');
+  var comparacao = criterios.map(function (c) { var r = calcular(c, c); return { criterio: c, margens: r.linhas.map(function (l) { return { id: l.id, resultado: l.resultado, margem: l.margem }; }) }; });
+  return { principal: principal, comparacao: comparacao, indiretos: ind, avisoUnidades: avisoUnidades, unidades: Object.keys(unidades) };
+};
+
+if (typeof window !== 'undefined') window.Rel = Rel;
+
+/* Fase 4: DRE, faturamento e margem por produto (com rateio), balancete, critérios e fechamento. */
+R.relCfg = { aba: 'dre', modo: 'mes', mes: '', ano: '', de: '', ate: '', zeros: false, custos: '', despesas: '' };
+
+R.periodoRel = function () {
+  var c = R.relCfg;
+  if (c.modo === 'ano') return { de: c.ano + '-01-01', ate: c.ano + '-12-31', nome: 'Ano de ' + c.ano };
+  if (c.modo === 'periodo' && c.de && c.ate) return { de: c.de, ate: c.ate, nome: R.fmtData(c.de) + ' a ' + R.fmtData(c.ate) };
+  var p = c.mes.split('-').map(Number), fim = new Date(Date.UTC(p[0], p[1], 0)).toISOString().slice(0, 10);
+  return { de: c.mes + '-01', ate: fim, nome: R.nomeMes(c.mes) };
+};
+
+R.telas.relatorios = function () {
+  var c = R.relCfg;
+  if (!c.mes) { c.mes = R.hoje().slice(0, 7); c.ano = c.mes.slice(0, 4); c.de = c.mes + '-01'; c.ate = R.hoje(); }
+  if (c.aba === 'balancete' && R.usuario.perfil !== 'contador') c.aba = 'dre';
+  return R.lerComCache('rel:' + R.empresa.id, 'dadosRelatorios', { empresaId: R.empresa.id }, function (r) {
+    R.relDados = r;
+    if (!c.custos) { c.custos = (r.rateio && r.rateio.custos) || 'receita'; c.despesas = (r.rateio && r.rateio.despesas) || 'receita'; }
+    if (R.tela === 'relatorios') R.renderRel();
+  });
+};
+
+R.ABAS_REL = function () {
+  var a = [['dre', 'DRE'], ['produtos', 'Por produto']];
+  if (R.usuario.perfil === 'contador') a.push(['balancete', 'Balancete']);
+  return a;
+};
+
+R.renderRel = function () {
+  var c = R.relCfg, per = R.periodoRel(), r = R.relDados;
+  var html = '<h1 class="nao-imprimir">Relatórios</h1><div class="seg nao-imprimir" role="tablist">' + R.ABAS_REL().map(function (a) {
+    return '<button role="tab" data-act="abaRel" data-aba="' + a[0] + '" aria-selected="' + (a[0] === c.aba) + '"' + (a[0] === c.aba ? ' class="ativo"' : '') + '>' + a[1] + '</button>';
+  }).join('') + '</div>';
+  html += '<div class="periodo nao-imprimir"><label class="campo"><span>Período</span><select id="relModo">' +
+    R.opcoes([['mes', 'Mês'], ['ano', 'Ano'], ['periodo', 'Escolher datas']], c.modo) + '</select></label>';
+  if (c.modo === 'mes' || c.modo === 'ano') {
+    html += '<div class="mes-nav"><button class="btn" data-act="navRel" data-d="-1" aria-label="Anterior">‹</button><b>' + (c.modo === 'mes' ? R.nomeMes(c.mes) : c.ano) + '</b>' +
+      '<button class="btn" data-act="navRel" data-d="1" aria-label="Próximo">›</button></div>';
+  } else {
+    html += '<div class="grade2"><label class="campo"><span>De</span><input type="date" id="relDe" value="' + R.esc(c.de) + '"></label>' +
+      '<label class="campo"><span>Até</span><input type="date" id="relAte" value="' + R.esc(c.ate) + '"></label></div>';
+  }
+  html += '</div>';
+  if (r.fechadoAte) html += '<p class="muted nao-imprimir">Período fechado até ' + r.fechadoAte.slice(5) + '/' + r.fechadoAte.slice(0, 4) + '.</p>';
+  html += '<div class="so-impressao"><h2>' + R.esc(R.empresa.nome) + '</h2><p>' + R.esc(R.fmtDoc(R.empresa.documento)) + ' · ' + ({ dre: 'DRE', produtos: 'Faturamento e margem por produto', balancete: 'Balancete' }[c.aba]) + ' · ' + R.esc(per.nome) + '</p></div>';
+  if (c.aba === 'dre') html += R.htmlDre(per);
+  else if (c.aba === 'produtos') html += R.htmlProdutos(per);
+  else html += R.htmlBalancete(per);
+  html += '<div class="botoes nao-imprimir"><button class="btn" data-act="imprimirRel">Imprimir ou salvar PDF</button><button class="btn" data-act="exportarRel">Exportar para Excel</button></div>';
+  R.pintar(html);
+};
+
+R.acoes.abaRel = function (el) { R.relCfg.aba = el.dataset.aba; R.renderRel(); };
+R.acoes.navRel = function (el) {
+  var c = R.relCfg, d = Number(el.dataset.d);
+  if (c.modo === 'ano') c.ano = String(Number(c.ano) + d);
+  else { var p = c.mes.split('-').map(Number), x = new Date(p[0], p[1] - 1 + d, 1); c.mes = x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2); }
+  R.renderRel();
+};
+document.addEventListener('change', function (ev) {
+  var id = ev.target.id, c = R.relCfg;
+  if (id === 'relModo') { c.modo = ev.target.value; R.renderRel(); }
+  if (id === 'relDe' || id === 'relAte') { c[id === 'relDe' ? 'de' : 'ate'] = ev.target.value; if (c.de && c.ate && c.de <= c.ate) R.renderRel(); }
+  if (id === 'relCustos' || id === 'relDespesas') { c[id === 'relCustos' ? 'custos' : 'despesas'] = ev.target.value; R.renderRel(); }
+  if (id === 'relZeros') { c.zeros = ev.target.checked; R.renderRel(); }
+});
+
+R.valorDre = function (v) { return '<span class="' + (v < 0 ? 'neg' : '') + '">' + (v < 0 ? '− ' : '') + R.fmtR(Math.abs(v)) + '</span>'; };
+R.nomeConta = function (id) { var c = R.porId(R.cad.plano, id); return c ? c.nome : id; };
+
+// ---------- DRE ----------
+R.htmlDre = function (per) {
+  var d = Rel.dre(R.relDados.partidas, per.de, per.ate), t = d.t;
+  var bloco = function (titulo, grupo, sinal) {
+    var contas = Object.keys(d.contas[grupo]).filter(function (k) { return d.contas[grupo][k]; }).sort();
+    return '<tr class="g"><td>' + titulo + '</td><td>' + R.valorDre(t[grupo]) + '</td></tr>' + contas.map(function (k) {
+      return '<tr class="c"><td>' + R.esc(R.nomeConta(k)) + '</td><td>' + R.valorDre(d.contas[grupo][k]) + '</td></tr>';
+    }).join('');
+  };
+  var sub = function (titulo, v, forte) { return '<tr class="s' + (forte ? ' forte' : '') + '"><td>' + titulo + '</td><td>' + R.valorDre(v) + '</td></tr>'; };
+  var html = '<div class="card"><table class="dre">' + bloco('Receita bruta', 'receita') + bloco('(−) Deduções', 'deducoes') + sub('= Receita líquida', t.receitaLiquida) +
+    bloco('(−) Custos de produção', 'custos') + sub('= Lucro bruto', t.lucroBruto) + bloco('(−) Despesas operacionais', 'despesas') + sub('= Resultado operacional', t.operacional) +
+    bloco('(+) Receitas financeiras', 'recFin') + bloco('(−) Despesas financeiras', 'despFin') + sub('= Resultado do período', t.resultado, true) + '</table>' +
+    (t.receitaLiquida > 0 ? '<p class="muted">Margem do período: <b>' + (t.resultado / t.receitaLiquida * 100).toFixed(1).replace('.', ',') + '%</b> da receita líquida.</p>' : '') + '</div>';
+  if (R.relCfg.modo === 'ano') {
+    var meses = Rel.resultadoPorMes(R.relDados.partidas, R.relCfg.ano);
+    html += '<div class="card"><h2>Mês a mês</h2><div class="rolagem"><table class="tabela"><thead><tr><th>Mês</th><th>Receita líq.</th><th>Custos e despesas</th><th>Resultado</th></tr></thead><tbody>' +
+      meses.map(function (m) { return '<tr><td>' + m.mes.slice(5) + '/' + m.mes.slice(2, 4) + '</td><td>' + R.fmtR(m.receita) + '</td><td>' + R.valorDre(m.custosDespesas) + '</td><td>' + R.valorDre(m.resultado) + '</td></tr>'; }).join('') +
+      '</tbody></table></div></div>';
+  }
+  return html + '<p class="muted nao-imprimir">A DRE usa a <b>data da compra ou venda</b> (venda com nota: data da nota). Investimentos, aportes e retiradas não entram no resultado.</p>';
+};
+
+// ---------- Por produto ----------
+R.NOMES_CRITERIO = { receita: 'Receita de cada produto', quantidade: 'Quantidade vendida', area: 'Área plantada' };
+R.nomeCriterio = function (c) {
+  if (R.NOMES_CRITERIO[c]) return R.NOMES_CRITERIO[c];
+  var m = ((R.relDados.rateio || {}).metricas || []).filter(function (x) { return 'm:' + x.id === c; })[0];
+  return m ? m.nome : c;
+};
+R.opcoesCriterio = function (atual) {
+  var cfg = R.relDados.rateio || {}, l = [['receita', R.NOMES_CRITERIO.receita], ['quantidade', R.NOMES_CRITERIO.quantidade], ['area', R.NOMES_CRITERIO.area]];
+  (cfg.metricas || []).forEach(function (m) { l.push(['m:' + m.id, m.nome]); });
+  return R.opcoes(l, atual);
+};
+R.pct = function (m) { return m === null || m === undefined ? '—' : (m * 100).toFixed(1).replace('.', ',') + '%'; };
+
+R.calcProdutos = function (per) {
+  var c = R.relCfg, cfg = JSON.parse(JSON.stringify(R.relDados.rateio || {}));
+  cfg.custos = c.custos; cfg.despesas = c.despesas;
+  return Rel.produtos(R.relDados, R.cad.plano, R.cad.itens, per.de, per.ate, cfg);
+};
+
+R.htmlProdutos = function (per) {
+  var c = R.relCfg, pr = R.calcProdutos(per), p = pr.principal, ind = pr.indiretos;
+  var html = '<div class="card nao-imprimir"><h2>Como dividir os gastos gerais</h2>' +
+    '<p class="muted" style="margin-top:0">Gastos lançados como "Geral da propriedade" são divididos entre os produtos pelo critério escolhido. Os demais vão direto ao produto.</p>' +
+    '<label class="campo"><span>Custos de produção gerais (' + R.fmtR(Math.abs(ind.custos)) + ') divididos por</span><select id="relCustos">' + R.opcoesCriterio(c.custos) + '</select></label>' +
+    '<label class="campo"><span>Despesas gerais, inclusive juros (' + R.fmtR(Math.abs(ind.despesas)) + ') divididas por</span><select id="relDespesas">' + R.opcoesCriterio(c.despesas) + '</select></label>' +
+    '<div class="botoes"><button class="btn" data-act="salvarCriterios">Usar como padrão</button><button class="btn" data-act="nav" data-tela="configRateio">Áreas, conversões e medidas</button></div></div>';
+  if ((c.custos === 'quantidade' || c.despesas === 'quantidade') && pr.avisoUnidades) {
+    html += '<div class="alerta aviso">Os produtos são vendidos em unidades diferentes (' + pr.unidades.join(', ') + '). Dividir pela quantidade só faz sentido com uma conversão para a mesma unidade: informe em <b>Áreas, conversões e medidas</b>.</div>';
+  }
+  if (p.semBase.custos || p.semBase.despesas) html += '<div class="alerta aviso">O critério escolhido está sem valores (ex.: área não informada). O gasto ficou como "não distribuído".</div>';
+  if (!p.linhas.length) return html + '<div class="card"><p class="muted">Nenhuma venda ou gasto por produto neste período.</p></div>';
+  html += '<div class="card"><h2>Faturamento por produto</h2><div class="rolagem"><table class="tabela"><thead><tr><th>Produto</th><th>Quantidade</th><th>Receita</th><th>Preço médio</th></tr></thead><tbody>' +
+    p.linhas.map(function (l) {
+      return '<tr><td>' + R.esc(l.nome) + '</td><td>' + R.fmtNum(l.qtd) + ' ' + R.esc(l.unidade) + '</td><td>' + R.fmtR(l.receita) + '</td><td>' + (l.qtd ? R.fmtR(l.precoMedio) + '/' + R.esc(l.unidade) : '—') + '</td></tr>';
+    }).join('') + '<tr class="total"><td>Total</td><td></td><td>' + R.fmtR(p.linhas.reduce(function (s, l) { return s + l.receita; }, 0)) + '</td><td></td></tr></tbody></table></div></div>';
+  html += '<h2>Margem por produto</h2>' + p.linhas.map(function (l) {
+    var linha = function (rot, v) { return v ? '<tr><td>' + rot + '</td><td>' + R.valorDre(v) + '</td></tr>' : ''; };
+    return '<div class="card produto-margem"><div class="lanc-linha"><b>' + R.esc(l.nome) + '</b><b class="' + (l.resultado < 0 ? 'neg' : 'pos') + '">' + R.pct(l.margem) + '</b></div>' +
+      '<table class="conf">' + linha('Receita de vendas', l.receita) + linha('Frete e acréscimos cobrados (rateados)', l.outrasReceitas) + linha('Descontos concedidos (rateados)', l.deducoes) +
+      '<tr class="forte"><td>Receita líquida</td><td>' + R.valorDre(l.receitaLiquida) + '</td></tr>' +
+      linha('Custos diretos', l.custosDiretos) + linha('Despesas diretas', l.despesasDiretas) + linha('Custos gerais rateados', l.custosRateados) + linha('Despesas gerais rateadas', l.despesasRateadas) +
+      '<tr class="forte"><td>Resultado do produto</td><td>' + R.valorDre(l.resultado) + '</td></tr></table></div>';
+  }).join('');
+  html += '<div class="card"><table class="conf">' + (p.naoDistribuido ? '<tr><td>Não distribuído entre produtos (receitas financeiras e gastos sem base)</td><td>' + R.valorDre(p.naoDistribuido) + '</td></tr>' : '') +
+    '<tr class="forte"><td>Total (igual ao resultado da DRE)</td><td>' + R.valorDre(p.total) + '</td></tr></table></div>';
+  html += '<div class="card"><h2>Comparar critérios</h2><p class="muted" style="margin-top:0">Margem de cada produto se todos os gastos gerais fossem divididos pelo mesmo critério.</p>' +
+    '<div class="rolagem"><table class="tabela"><thead><tr><th>Produto</th>' + pr.comparacao.map(function (x) { return '<th>' + R.esc(R.nomeCriterio(x.criterio)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    p.linhas.map(function (l, i) { return '<tr><td>' + R.esc(l.nome) + '</td>' + pr.comparacao.map(function (x) { return '<td>' + R.pct(x.margens[i].margem) + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table></div></div>';
+  return html;
+};
+
+R.acoes.salvarCriterios = function () {
+  var cfg = JSON.parse(JSON.stringify(R.relDados.rateio || {}));
+  cfg.custos = R.relCfg.custos; cfg.despesas = R.relCfg.despesas;
+  return R.exec('salvarRateio', { empresaId: R.empresa.id, rateio: cfg }).then(function (r) { R.relDados.rateio = r.rateio; R.toast('Critérios salvos como padrão.'); });
+};
+
+// ---------- Balancete ----------
+R.htmlBalancete = function (per) {
+  var b = Rel.balancete(R.relDados.partidas, R.cad.plano, per.de, per.ate);
+  var dc = function (v) { return v ? R.fmtR(Math.abs(v)) + (v > 0 ? ' D' : ' C') : '—'; };
+  var linhas = b.linhas.filter(function (l) { return R.relCfg.zeros || l.anterior || l.debito || l.credito; });
+  return '<label class="check nao-imprimir"><input type="checkbox" id="relZeros"' + (R.relCfg.zeros ? ' checked' : '') + '><span>Mostrar contas sem movimento</span></label>' +
+    '<div class="card"><div class="rolagem"><table class="tabela balancete"><thead><tr><th>Conta</th><th>Saldo anterior</th><th>Débitos</th><th>Créditos</th><th>Saldo atual</th></tr></thead><tbody>' +
+    linhas.map(function (l) {
+      return '<tr class="' + (l.tipo === 'S' ? 'sint n' + l.id.split('.').length : '') + '"><td><span class="cod">' + R.esc(l.id) + '</span> ' + R.esc(l.nome) + '</td><td>' + dc(l.anterior) + '</td><td>' + R.fmtR(l.debito) +
+        '</td><td>' + R.fmtR(l.credito) + '</td><td>' + dc(l.atual) + '</td></tr>';
+    }).join('') + '<tr class="total"><td>Totais do período</td><td></td><td>' + R.fmtR(b.totais.debito) + '</td><td>' + R.fmtR(b.totais.credito) + '</td><td>' +
+    (b.totais.debito === b.totais.credito ? '✓ confere' : '<span class="neg">não confere</span>') + '</td></tr></tbody></table></div></div>' +
+    '<p class="muted nao-imprimir">D = saldo devedor, C = saldo credor. As contas de resultado acumulam desde o início da empresa no sistema.</p>';
+};
+
+// ---------- Exportar e imprimir ----------
+R.acoes.imprimirRel = function () { window.print(); };
+
+R.csvNum = function (c) { return (c / 100).toFixed(2).replace('.', ','); };
+R.baixarCsv = function (nome, linhas) {
+  var txt = '\ufeff' + linhas.map(function (l) { return l.map(function (v) { v = String(v === undefined || v === null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(';'); }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv;charset=utf-8' }));
+  a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+};
+
+R.acoes.exportarRel = function () {
+  var c = R.relCfg, per = R.periodoRel(), L = [[R.empresa.nome], [per.nome], []], arq = 'sistema-rural-' + c.aba + '-' + per.de + '-a-' + per.ate + '.csv';
+  if (c.aba === 'dre') {
+    var d = Rel.dre(R.relDados.partidas, per.de, per.ate), t = d.t;
+    var bloco = function (tit, g) { L.push([tit, R.csvNum(t[g])]); Object.keys(d.contas[g]).sort().forEach(function (k) { if (d.contas[g][k]) L.push(['   ' + R.nomeConta(k), R.csvNum(d.contas[g][k])]); }); };
+    L.push(['Linha', 'Valor (R$)']);
+    bloco('Receita bruta', 'receita'); bloco('(-) Deduções', 'deducoes'); L.push(['= Receita líquida', R.csvNum(t.receitaLiquida)]);
+    bloco('(-) Custos de produção', 'custos'); L.push(['= Lucro bruto', R.csvNum(t.lucroBruto)]);
+    bloco('(-) Despesas operacionais', 'despesas'); L.push(['= Resultado operacional', R.csvNum(t.operacional)]);
+    bloco('(+) Receitas financeiras', 'recFin'); bloco('(-) Despesas financeiras', 'despFin'); L.push(['= Resultado do período', R.csvNum(t.resultado)]);
+  } else if (c.aba === 'produtos') {
+    var p = R.calcProdutos(per).principal;
+    L.push(['Custos gerais divididos por', R.nomeCriterio(c.custos)], ['Despesas gerais divididas por', R.nomeCriterio(c.despesas)], []);
+    L.push(['Produto', 'Unidade', 'Quantidade', 'Receita', 'Preço médio', 'Frete/acréscimos rateados', 'Descontos rateados', 'Receita líquida', 'Custos diretos', 'Despesas diretas', 'Custos rateados', 'Despesas rateadas', 'Resultado', 'Margem %']);
+    p.linhas.forEach(function (l) {
+      L.push([l.nome, l.unidade, String(l.qtd).replace('.', ','), R.csvNum(l.receita), l.qtd ? R.csvNum(l.precoMedio) : '', R.csvNum(l.outrasReceitas), R.csvNum(l.deducoes), R.csvNum(l.receitaLiquida),
+        R.csvNum(l.custosDiretos), R.csvNum(l.despesasDiretas), R.csvNum(l.custosRateados), R.csvNum(l.despesasRateadas), R.csvNum(l.resultado), l.margem === null ? '' : (l.margem * 100).toFixed(1).replace('.', ',')]);
+    });
+    L.push(['Não distribuído', '', '', '', '', '', '', '', '', '', '', '', R.csvNum(p.naoDistribuido)], ['Total (resultado da DRE)', '', '', '', '', '', '', '', '', '', '', '', R.csvNum(p.total)]);
+  } else {
+    var b = Rel.balancete(R.relDados.partidas, R.cad.plano, per.de, per.ate);
+    L.push(['Código', 'Conta', 'Saldo anterior', 'Débitos', 'Créditos', 'Saldo atual']);
+    b.linhas.forEach(function (l) { if (c.zeros || l.anterior || l.debito || l.credito) L.push([l.id, l.nome, R.csvNum(l.anterior), R.csvNum(l.debito), R.csvNum(l.credito), R.csvNum(l.atual)]); });
+    L.push(['', 'Totais', '', R.csvNum(b.totais.debito), R.csvNum(b.totais.credito), '']);
+  }
+  R.baixarCsv(arq, L);
+};
+
+// ---------- Áreas, conversões e medidas ----------
+R.telas.configRateio = function () {
+  if (!R.relDados) { R.ir('relatorios'); return; }
+  var cfg = R.relDados.rateio || {}, prods = R.itensAtivos('produto');
+  R.cfgEdit = JSON.parse(JSON.stringify({ fatores: cfg.fatores || {}, areas: cfg.areas || {}, metricas: cfg.metricas || [] }));
+  R.renderConfigRateio(prods);
+};
+
+R.renderConfigRateio = function (prods) {
+  prods = prods || R.itensAtivos('produto');
+  var e = R.cfgEdit, num = function (v) { return v || v === 0 ? String(v).replace('.', ',') : ''; };
+  var html = '<h1>Áreas, conversões e medidas</h1><p class="muted">Usadas para dividir os gastos gerais entre os produtos.</p>';
+  if (!prods.length) { R.pintar(html + '<div class="card"><p>Cadastre os produtos que você vende primeiro.</p></div>'); return; }
+  html += '<form class="card" data-form="configRateio" novalidate><div class="msg" hidden></div>' +
+    '<h2>Área plantada (hectares)</h2>' + prods.map(function (p) { return '<label class="campo"><span>' + R.esc(p.nome) + '</span><input inputmode="decimal" data-cfg="areas" data-id="' + R.esc(p.id) + '" value="' + num(e.areas[p.id]) + '" placeholder="0"></label>'; }).join('') +
+    '<h2>Conversão de quantidade</h2><p class="muted" style="margin-top:0">Para comparar produtos vendidos em unidades diferentes. Ex.: 1 maço de alface = 0,3 kg.</p>' +
+    prods.map(function (p) { return '<label class="campo"><span>1 ' + R.esc(R.rotulo(R.UNIDADES, p.unidade).toLowerCase()) + ' de ' + R.esc(p.nome) + ' = quantos kg (ou unidade comum)?</span><input inputmode="decimal" data-cfg="fatores" data-id="' + R.esc(p.id) + '" value="' + num(e.fatores[p.id]) + '" placeholder="1"></label>'; }).join('') +
+    '<h2>Medidas próprias</h2><p class="muted" style="margin-top:0">Ex.: horas de trabalho, caixas colhidas.</p>' +
+    e.metricas.map(function (m, i) {
+      return '<div class="linha-item"><div class="linha-topo"><input data-met-nome="' + i + '" value="' + R.esc(m.nome) + '" maxlength="40" placeholder="Nome da medida"><button type="button" class="btn link" data-act="removerMetrica" data-i="' + i + '">Remover</button></div>' +
+        prods.map(function (p) { return '<label class="campo"><span>' + R.esc(p.nome) + '</span><input inputmode="decimal" data-met="' + i + '" data-id="' + R.esc(p.id) + '" value="' + num(m.valores[p.id]) + '" placeholder="0"></label>'; }).join('') + '</div>';
+    }).join('') + '<div class="botoes"><button type="button" class="btn" data-act="addMetrica">+ Nova medida</button></div>' +
+    '<div class="botoes"><button type="button" class="btn" data-act="nav" data-tela="relatorios">Cancelar</button><button class="btn primario">Salvar</button></div></form>';
+  R.pintar(html);
+};
+
+R.lerFormRateio = function () {
+  var e = R.cfgEdit;
+  document.querySelectorAll('[data-cfg]').forEach(function (el) { var n = R.parseNum(el.value); if (el.value.trim() === '') delete e[el.dataset.cfg][el.dataset.id]; else e[el.dataset.cfg][el.dataset.id] = isFinite(n) ? n : el.value; });
+  document.querySelectorAll('[data-met-nome]').forEach(function (el) { e.metricas[Number(el.dataset.metNome)].nome = el.value; });
+  document.querySelectorAll('[data-met]').forEach(function (el) { var m = e.metricas[Number(el.dataset.met)], n = R.parseNum(el.value); if (el.value.trim() === '') delete m.valores[el.dataset.id]; else m.valores[el.dataset.id] = isFinite(n) ? n : el.value; });
+};
+R.acoes.addMetrica = function () { R.lerFormRateio(); R.cfgEdit.metricas.push({ id: '', nome: '', valores: {} }); R.renderConfigRateio(); };
+R.acoes.removerMetrica = function (el) { R.lerFormRateio(); R.cfgEdit.metricas.splice(Number(el.dataset.i), 1); R.renderConfigRateio(); };
+
+R.forms.configRateio = function () {
+  R.lerFormRateio();
+  var cfg = { custos: R.relCfg.custos || 'receita', despesas: R.relCfg.despesas || 'receita', fatores: R.cfgEdit.fatores, areas: R.cfgEdit.areas, metricas: R.cfgEdit.metricas };
+  var ids = cfg.metricas.map(function (m) { return 'm:' + m.id; });
+  if (/^m:/.test(cfg.custos) && ids.indexOf(cfg.custos) < 0) cfg.custos = 'receita';
+  if (/^m:/.test(cfg.despesas) && ids.indexOf(cfg.despesas) < 0) cfg.despesas = 'receita';
+  return R.exec('salvarRateio', { empresaId: R.empresa.id, rateio: cfg }).then(function (r) {
+    R.relDados.rateio = r.rateio;
+    R.relCfg.custos = r.rateio.custos; R.relCfg.despesas = r.rateio.despesas;
+    R.toast('Salvo.');
+    R.relCfg.aba = 'produtos';
+    R.ir('relatorios');
+  });
+};
+
+// ---------- Fechamento de período (contador) ----------
+R.telas.fechamento = function () {
+  var f = R.cad.fechadoAte, sug = (function () { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); })();
+  if (sug < R.empresa.dataInicio.slice(0, 7)) sug = R.empresa.dataInicio.slice(0, 7);
+  R.pintar('<h1>Fechamento de período</h1><div class="card"><p>' + (f ? 'Fechado até <b>' + f.slice(5) + '/' + f.slice(0, 4) + '</b>. Nada com data até o fim deste mês pode ser lançado, alterado ou excluído.' : 'Nenhum período fechado.') + '</p>' +
+    '<p class="muted">Feche o mês depois de conferir a DRE e o balancete. Para corrigir algo, reabra e feche de novo.</p></div>' +
+    '<form class="card" data-form="fechamento" novalidate><div class="msg" hidden></div><label class="campo"><span>Fechar até o mês</span><input type="month" name="ate" value="' + R.esc(f || sug) + '" min="' + R.esc(R.empresa.dataInicio.slice(0, 7)) + '" max="' + R.hoje().slice(0, 7) + '"></label>' +
+    '<div class="botoes"><button class="btn primario">Fechar até este mês</button>' + (f ? '<button type="button" class="btn perigo" data-act="reabrirTudo">Reabrir tudo</button>' : '') + '</div></form>');
+};
+R.forms.fechamento = function (d) {
+  if (!confirm('Fechar o período até ' + d.ate.slice(5) + '/' + d.ate.slice(0, 4) + '?')) return Promise.resolve();
+  return R.exec('fecharPeriodo', { empresaId: R.empresa.id, ate: d.ate }).then(function (r) { R.cad.fechadoAte = r.fechadoAte; R.toast('Período fechado.'); R.ir('fechamento'); });
+};
+R.acoes.reabrirTudo = function () {
+  if (!confirm('Reabrir todos os períodos? Os lançamentos voltam a poder ser alterados.')) return;
+  return R.exec('fecharPeriodo', { empresaId: R.empresa.id, ate: '' }).then(function (r) { R.cad.fechadoAte = r.fechadoAte; R.toast('Períodos reabertos.'); R.ir('fechamento'); });
+};
+
 /* Moldura do app (topo e navegação) e inicialização. */
 var ICONES_R = {
   inicio: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
   lancamentos: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
   cadastros: '<path d="M4 7l8-4 8 4-8 4z"/><path d="M4 12l8 4 8-4M4 17l8 4 8-4"/>',
   financeiro: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
-  escritorio: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/>',
+  relatorios: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  mais: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   conta: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>'
 };
 
@@ -2078,10 +2564,11 @@ var ICONES_R = {
 var TELAS_COM_NAV_R = {
   inicio: 'inicio', lancamentos: 'lancamentos', detalheLanc: 'lancamentos', lancar: 'lancamentos',
   financeiro: 'financeiro', formBaixa: 'financeiro', formMovimento: 'financeiro',
-  notas: 'lancamentos', espelho: 'lancamentos', formAprovacao: 'lancamentos', formRecusa: 'lancamentos', formNota: 'lancamentos', formEmitente: 'cadastros',
-  cadastros: 'cadastros', formItem: 'cadastros', formCliente: 'cadastros', formFornecedor: 'cadastros', formContaFin: 'cadastros',
-  escritorio: 'escritorio', plano: 'escritorio', formConta: 'escritorio', empresas: 'escritorio', formEmpresa: 'escritorio',
-  usuarios: 'escritorio', formUsuario: 'escritorio', senhaGerada: 'escritorio', conta: 'conta', contaContador: 'escritorio', velocidade: 'escritorio', escolher: '', semEmpresa: ''
+  relatorios: 'relatorios', configRateio: 'relatorios',
+  notas: 'mais', espelho: 'mais', formAprovacao: 'mais', formRecusa: 'mais', formNota: 'mais', formEmitente: 'mais',
+  cadastros: 'mais', formItem: 'mais', formCliente: 'mais', formFornecedor: 'mais', formContaFin: 'mais',
+  mais: 'mais', escritorio: 'mais', plano: 'mais', formConta: 'mais', empresas: 'mais', formEmpresa: 'mais', fechamento: 'mais',
+  usuarios: 'mais', formUsuario: 'mais', senhaGerada: 'mais', conta: 'mais', contaContador: 'mais', velocidade: 'mais', escolher: '', semEmpresa: ''
 };
 
 R.atualizarMoldura = function () {
@@ -2095,10 +2582,8 @@ R.atualizarMoldura = function () {
   R.el('marca').textContent = logado && R.empresa ? R.empresa.nome : 'Sistema Rural';
   if (!logado) return;
   var itens = [];
-  if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['financeiro', 'Financeiro'], ['cadastros', 'Cadastros']);
-  // contador: "Minha conta" fica dentro do Escritório, para a barra caber no celular
-  if (R.usuario.perfil === 'contador') itens.push(['escritorio', 'Escritório']);
-  if (R.usuario.perfil !== 'contador' || !R.empresa) itens.push(['conta', 'Conta']);
+  if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['financeiro', 'Financeiro'], ['relatorios', 'Relatórios']);
+  itens.push(['mais', 'Mais']); // cadastros, notas, conta e ferramentas do escritório
   nav.innerHTML = itens.map(function (i) {
     return '<button data-act="nav" data-tela="' + i[0] + '"' + (secao === i[0] ? ' class="ativo" aria-current="page"' : '') + '>' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONES_R[i[0]] + '</svg>' + i[1] + '</button>';
