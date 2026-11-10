@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "cc4d9a667d6f";</script>
+<script>window.R_VERSAO = "ac7587b14485";</script>
 
 <style>
 :root {
@@ -358,12 +358,12 @@ R.tratarResposta = function (txt) {
   return r;
 };
 
-R.chamar = function (acao, payload) {
+R.chamar = function (acao, payload, prazoMs) {
   var corpo = JSON.stringify(payload || {});
   // Versão site: fala com o Google sem cookies, então várias contas Google no navegador não atrapalham.
   if (window.R_API) {
     var ctrl = window.AbortController ? new AbortController() : null;
-    var prazo = ctrl ? setTimeout(function () { ctrl.abort(); }, 90000) : null;
+    var prazo = ctrl ? setTimeout(function () { ctrl.abort(); }, prazoMs || 90000) : null;
     return fetch(window.R_API, {
       method: 'POST', credentials: 'omit', cache: 'no-store', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -966,7 +966,8 @@ R.telas.mais = function () {
     html += '<h2 class="grupo">Escritório</h2>' +
       (e ? item('plano', 'Plano de contas', 'Contas e categorias da empresa aberta') + item('fechamento', 'Fechamento de período', 'Bloqueia alterações nos meses já conferidos') : '') +
       item('empresas', 'Empresas', 'Cadastrar e editar empresas') + item('usuarios', 'Usuários', 'Acessos e senhas temporárias') +
-      (e ? item('velocidade', 'Teste de velocidade', 'Mede quanto o servidor do Google demora em cada tela') : '');
+      (e ? item('velocidade', 'Teste de velocidade', 'Mede quanto o servidor do Google demora em cada tela') : '') +
+      '<button class="item" data-act="criarDemonstracao"><b>Criar empresa de demonstração</b><small>Uma empresa separada, com um mês de lançamentos de exemplo para conferir as telas e os relatórios</small></button>';
   }
   html += '<h2 class="grupo">Conta</h2>' + item('conta', 'Minha conta', 'Trocar a senha e sair do sistema');
   R.pintar(html);
@@ -1047,6 +1048,25 @@ R.forms.conta = function (d) {
     R.cad.plano = r.plano;
     R.toast('Conta salva.');
     R.ir('plano');
+  });
+};
+
+// ---------- Empresa de demonstração (contador) ----------
+R.acoes.criarDemonstracao = function () {
+  if (!confirm('Criar a empresa "Demonstração – Horta Boa Vista" com um mês de lançamentos de exemplo (outubro/2026)? Ela fica separada das empresas reais. Leva cerca de 1 a 2 minutos.')) return;
+  R.ocupado(true);
+  R.el('busy').querySelector('div:last-child').textContent = 'Criando a empresa de demonstração... (1 a 2 minutos)';
+  return R.chamar('criarDemonstracao', {}, 360000).then(function (r) {
+    R.ocupado(false);
+    R.el('busy').querySelector('div:last-child').textContent = 'Aguarde...';
+    R.cacheDados = {};
+    R.empresas = r.empresas;
+    R.toast('Empresa de demonstração criada.');
+    return R.abrirEmpresa(r.empresa.id);
+  }, function (e) {
+    R.ocupado(false);
+    R.el('busy').querySelector('div:last-child').textContent = 'Aguarde...';
+    return R.tratarErroSessao(e);
   });
 };
 
