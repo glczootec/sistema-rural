@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b6e45">
 <title>Sistema Rural</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://script.google.com https://script.googleusercontent.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -14,6 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
+<script>window.R_VERSAO = "93ec4f613163";</script>
 
 <style>
 :root {
@@ -1364,7 +1365,31 @@ R.acoes.nav = function (el) {
   R.ir(el.dataset.tela);
 };
 
+// Se o site tiver versão nova, recarrega com outro endereço (?v=...) para o navegador não usar a cópia guardada.
+R.conferirVersao = function () {
+  if (!window.R_VERSAO || !window.fetch) return Promise.resolve(false);
+  return fetch('versao.json?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (v) {
+      if (v.versao && v.versao !== window.R_VERSAO && location.search.indexOf('v=' + v.versao) < 0) {
+        location.replace(location.pathname + '?v=' + v.versao);
+        return true;
+      }
+      return false;
+    })
+    .catch(function () { return false; });
+};
+
+// Quem deixa o app aberto no celular por dias também recebe a versão nova ao voltar para ele.
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && R.tela !== 'lancar') R.conferirVersao();
+});
+
 R.iniciar = function () {
+  R.conferirVersao().then(function (recarregando) { if (!recarregando) R.iniciarSessao(); });
+};
+
+R.iniciarSessao = function () {
   R.token = R.ler('rural_sessao');
   if (!R.token) { R.ir('login'); return; }
   R.chamar('eu').then(R.entrar).catch(function (e) {
