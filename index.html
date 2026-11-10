@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b6e45">
+<title>Sistema Rural</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://script.google.com https://script.googleusercontent.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icone-apple.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sistema Rural">
+<script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
+
+<style>
+:root {
+  --pri: #1b6e45; --pri-escuro: #145436; --pri-txt: #fff; --pri-claro: #e3f1e8;
+  --bg: #f4f6f2; --card: #fff; --txt: #1b2620; --muted: #56655c; --borda: #dbe2dc;
+  --ok: #11743b; --ok-bg: #e5f4ea; --erro: #b3261e; --erro-bg: #fbe9e7; --aviso: #7d5200; --aviso-bg: #fff4dc;
+  --raio: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 16px; line-height: 1.45; background: var(--bg); color: var(--txt); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+h1 { font-size: 1.35rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.15rem; margin: 0 0 .6rem; }
+h3 { font-size: 1rem; margin: 0 0 .4rem; }
+p { margin: .4rem 0; }
+.muted { color: var(--muted); }
+.carregando { padding: 48px 16px; text-align: center; color: var(--muted); }
+
+header.topo { position: sticky; top: 0; z-index: 20; background: var(--pri); color: var(--pri-txt); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; min-height: 56px; }
+#marca { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.btn-topo { flex: none; max-width: 55%; background: var(--pri-escuro); color: #fff; border: 0; border-radius: 9px; padding: 8px 12px; font: inherit; font-size: .88rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 40px; }
+
+main { max-width: 720px; margin: 0 auto; padding: 16px 16px 110px; }
+nav#nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: var(--card); border-top: 1px solid var(--borda); display: flex; justify-content: space-around; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
+nav#nav button { flex: 1; background: none; border: 0; padding: 6px 2px; color: var(--muted); font: inherit; font-size: .75rem; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 54px; }
+nav#nav button svg { width: 24px; height: 24px; }
+nav#nav button.ativo { color: var(--pri); font-weight: 700; }
+
+.card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px; margin: 0 0 12px; }
+.card.destaque { border-left: 5px solid var(--pri); }
+.titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.titulo-linha h1 { margin: 0; }
+
+.entrada { max-width: 420px; margin: 7vh auto 0; }
+.logo { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: var(--pri); }
+.logo svg { width: 42px; height: 42px; flex: none; }
+.logo b { display: block; font-size: 1.3rem; color: var(--txt); }
+.logo span { font-size: .9rem; color: var(--muted); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--borda); background: var(--card); color: var(--txt); border-radius: 10px; padding: 10px 14px; font: inherit; font-size: .95rem; cursor: pointer; min-height: 46px; }
+.btn:hover { border-color: var(--pri); }
+.btn.primario { background: var(--pri); border-color: var(--pri); color: var(--pri-txt); font-weight: 600; }
+.btn.primario:hover { background: var(--pri-escuro); }
+.btn.grande { width: 100%; min-height: 54px; font-size: 1.05rem; }
+.btn.link { border: 0; background: none; color: var(--pri); padding: 6px 4px; min-height: 40px; text-decoration: underline; }
+.btn.perigo { color: var(--erro); border-color: var(--erro); }
+.botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.botoes .btn { flex: 1 1 140px; }
+
+.campo { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; min-width: 0; }
+.campo > span { font-size: .88rem; color: var(--muted); font-weight: 600; }
+.campo small { color: var(--muted); }
+input, select { font: inherit; font-size: 16px; padding: 11px 10px; border: 1px solid #bcc7bf; border-radius: 9px; background: #fff; color: var(--txt); width: 100%; min-height: 48px; }
+input:focus, select:focus, .btn:focus-visible, nav button:focus-visible, .btn-topo:focus-visible, .item:focus-visible { outline: 2px solid var(--pri); outline-offset: 1px; }
+input[type=checkbox] { width: 22px; height: 22px; min-height: 0; flex: none; accent-color: var(--pri); }
+.check { display: flex; gap: 10px; align-items: center; padding: 8px 0; min-height: 44px; cursor: pointer; }
+.senha-caixa { position: relative; }
+.senha-caixa input { padding-right: 76px; }
+.senha-caixa button { position: absolute; top: 4px; right: 4px; bottom: 4px; width: 68px; background: none; border: 0; color: var(--pri); font: inherit; font-size: .85rem; cursor: pointer; }
+.grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 460px) { .grade2 { grid-template-columns: 1fr; } }
+
+.alerta { border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; font-size: .94rem; }
+.alerta.erro { background: var(--erro-bg); color: var(--erro); }
+.alerta.ok { background: var(--ok-bg); color: var(--ok); }
+.alerta.aviso { background: var(--aviso-bg); color: var(--aviso); }
+
+.item { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px; margin: 0 0 8px; font: inherit; color: inherit; cursor: pointer; }
+.item:hover { border-color: var(--pri); }
+.item b { display: block; overflow-wrap: anywhere; }
+.item small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.selo { display: inline-block; font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--pri-claro); color: var(--pri-escuro); margin-top: 4px; margin-right: 4px; }
+.selo.off { background: #eceff1; color: var(--muted); }
+.selo.alerta-selo { background: var(--aviso-bg); color: var(--aviso); }
+
+.dados { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+.dados dt { color: var(--muted); font-size: .9rem; }
+.dados dd { margin: 0; overflow-wrap: anywhere; }
+.proximos { margin: .3rem 0 0; padding-left: 1.2rem; }
+.proximos li { margin: .25rem 0; }
+.senha-gerada { font-family: Consolas, Menlo, monospace; font-size: 1.15rem; text-align: center; letter-spacing: .04em; }
+
+#toasts { position: fixed; left: 16px; right: 16px; bottom: 84px; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.toast { background: #23302a; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: .94rem; max-width: 460px; }
+.toast.erro { background: var(--erro); }
+#busy { position: fixed; inset: 0; z-index: 50; background: rgba(255, 255, 255, .72); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.spin { width: 36px; height: 36px; border: 4px solid var(--pri-claro); border-top-color: var(--pri); border-radius: 50%; animation: gira 1s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+</style>
+</head>
+<body>
+<header class="topo" id="topo" hidden>
+  <div id="marca">Sistema Rural</div>
+  <button class="btn-topo" id="trocaEmpresa" data-act="escolherEmpresa" hidden></button>
+</header>
+<main id="main"><div class="carregando">Carregando...</div></main>
+<nav id="nav" aria-label="Navegação" hidden></nav>
+<div id="toasts" aria-live="polite"></div>
+<div id="busy" hidden><div class="spin"></div><div>Aguarde...</div></div>
+<script>
+/* Base do app: estado, utilidades, comunicação com o servidor e eventos. */
+var R = {
+  token: '', usuario: null, empresas: [], empresa: null, tela: '', senhaRecente: '',
+  telas: {}, acoes: {}, forms: {},
+  UFS: ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO']
+};
+
+R.el = function (id) { return document.getElementById(id); };
+
+R.esc = function (v) {
+  return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+};
+
+R.fmtData = function (iso) {
+  if (!iso) return '';
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : iso;
+};
+
+R.fmtDoc = function (d) {
+  d = String(d || '');
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return d;
+};
+
+// O armazenamento do navegador pode estar bloqueado: o app continua funcionando sem ele.
+R.guardar = function (k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { } };
+R.ler = function (k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+
+R.toast = function (msg, erro) {
+  var t = document.createElement('div');
+  t.className = 'toast' + (erro ? ' erro' : '');
+  t.textContent = msg;
+  R.el('toasts').appendChild(t);
+  setTimeout(function () { t.remove(); }, 4500);
+};
+
+R.ocupado = function (sim) { R.el('busy').hidden = !sim; };
+
+R.tratarResposta = function (txt) {
+  var r;
+  try { r = JSON.parse(txt); } catch (e) { throw new Error('O servidor não respondeu como esperado. Tente novamente em instantes.'); }
+  if (r.erro) {
+    var e = new Error(r.erro);
+    e.sessaoExpirada = r.sessaoExpirada;
+    e.trocarSenha = r.trocarSenha;
+    throw e;
+  }
+  return r;
+};
+
+R.chamar = function (acao, payload) {
+  var corpo = JSON.stringify(payload || {});
+  // Versão site: fala com o Google sem cookies, então várias contas Google no navegador não atrapalham.
+  if (window.R_API) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var prazo = ctrl ? setTimeout(function () { ctrl.abort(); }, 90000) : null;
+    return fetch(window.R_API, {
+      method: 'POST', credentials: 'omit', cache: 'no-store', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: R.token, acao: acao, payload: corpo }),
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function (resp) {
+      clearTimeout(prazo);
+      return resp.text();
+    }, function () {
+      clearTimeout(prazo);
+      throw new Error('Não foi possível falar com o servidor. Verifique a internet e tente de novo.');
+    }).then(R.tratarResposta);
+  }
+  // Versão aberta direto pelo Google (link /exec).
+  return new Promise(function (resolve, reject) {
+    google.script.run
+      .withSuccessHandler(function (txt) {
+        try { resolve(R.tratarResposta(txt)); } catch (e) { reject(e); }
+      })
+      .withFailureHandler(function () {
+        reject(new Error('Não foi possível falar com o servidor. Verifique a internet. Se houver várias contas Google abertas neste navegador, abra o link numa janela anônima.'));
+      })
+      .api(R.token, acao, corpo);
+  });
+};
+
+// Executa uma ação mostrando "Aguarde" e tratando sessão vencida e troca obrigatória de senha.
+R.exec = function (acao, payload) {
+  R.ocupado(true);
+  return R.chamar(acao, payload).then(function (r) {
+    R.ocupado(false);
+    return r;
+  }, function (e) {
+    R.ocupado(false);
+    if (e.sessaoExpirada && R.token) { R.encerrar(); R.toast(e.message, true); e.tratado = true; }
+    else if (e.trocarSenha) { R.ir('trocarSenha'); e.tratado = true; }
+    throw e;
+  });
+};
+
+R.erroForm = function (form, msg) {
+  var caixa = form.querySelector('.msg');
+  if (caixa) { caixa.className = 'msg alerta erro'; caixa.setAttribute('role', 'alert'); caixa.textContent = msg; caixa.hidden = false; }
+  else R.toast(msg, true);
+};
+
+R.ir = function (tela, dados) {
+  R.tela = tela;
+  R.atualizarMoldura();
+  var r = R.telas[tela](dados);
+  if (r && r.then) r.catch(function (e) { if (!e.tratado) R.toast(e.message, true); });
+  window.scrollTo(0, 0);
+};
+
+R.pintar = function (html) { R.el('main').innerHTML = html; };
+
+document.addEventListener('click', function (ev) {
+  var el = ev.target.closest('[data-act]');
+  if (!el) return;
+  ev.preventDefault();
+  var r = R.acoes[el.dataset.act](el);
+  if (r && r.catch) r.catch(function (e) { if (!e.tratado) R.toast(e.message, true); });
+});
+
+document.addEventListener('submit', function (ev) {
+  var form = ev.target;
+  if (!form.dataset.form) return;
+  ev.preventDefault();
+  var dados = {};
+  new FormData(form).forEach(function (v, k) {
+    if (dados[k] === undefined) dados[k] = v;
+    else if (Array.isArray(dados[k])) dados[k].push(v);
+    else dados[k] = [dados[k], v];
+  });
+  var r = R.forms[form.dataset.form](dados, form);
+  if (r && r.catch) r.catch(function (e) { if (!e.tratado) R.erroForm(form, e.message); });
+});
+
+R.acoes.mostrarSenha = function (el) {
+  var campo = el.parentNode.querySelector('input');
+  var mostrar = campo.type === 'password';
+  campo.type = mostrar ? 'text' : 'password';
+  el.textContent = mostrar ? 'Ocultar' : 'Mostrar';
+};
+
+R.campoSenha = function (nome, rotulo, auto, ajuda) {
+  return '<label class="campo"><span>' + rotulo + '</span><div class="senha-caixa">' +
+    '<input type="password" name="' + nome + '" required autocomplete="' + auto + '">' +
+    '<button type="button" data-act="mostrarSenha">Mostrar</button></div>' +
+    (ajuda ? '<small>' + ajuda + '</small>' : '') + '</label>';
+};
+
+/* Telas de entrada: login, recuperação e troca de senha, escolha de empresa. */
+var LOGO_R = '<div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11"/><path d="M12 13c0-4 3-7 8-7 0 5-3 8-8 7z"/><path d="M12 16c0-3-2-6-7-6 0 4 3 7 7 6z"/></svg><div><b>Sistema Rural</b><span>Financeiro e resultado da propriedade</span></div></div>';
+
+var AJUDA_SENHA = 'Pelo menos 8 caracteres, com letras e números.';
+
+R.telas.login = function (d) {
+  R.pintar('<div class="entrada card">' + LOGO_R +
+    (d && d.aviso ? '<div class="alerta ok">' + R.esc(d.aviso) + '</div>' : '') +
+    '<form data-form="login" novalidate>' +
+    '<div class="msg" hidden></div>' +
+    '<label class="campo"><span>E-mail</span><input type="email" name="email" required autocomplete="username" inputmode="email" value="' + R.esc(d && d.email) + '"></label>' +
+    R.campoSenha('senha', 'Senha', 'current-password') +
+    '<button class="btn primario grande">Entrar</button></form>' +
+    '<div class="botoes"><button class="btn link" data-act="irEsqueci">Esqueci minha senha</button></div></div>');
+};
+
+R.forms.login = function (d) {
+  if (!d.email || !d.senha) return Promise.reject(new Error('Preencha o e-mail e a senha.'));
+  return R.exec('login', { email: d.email, senha: d.senha }).then(function (r) {
+    R.token = r.token;
+    R.guardar('rural_sessao', r.token);
+    R.senhaRecente = r.usuario.trocarSenha ? d.senha : '';
+    R.entrar(r);
+  });
+};
+
+R.acoes.irEsqueci = function () { R.ir('esqueci'); };
+R.acoes.irLogin = function () { R.ir('login'); };
+
+R.telas.esqueci = function () {
+  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Recuperar a senha</h2>' +
+    '<p class="muted">Informe seu e-mail de acesso. Se ele estiver cadastrado, enviaremos um código.</p>' +
+    '<form data-form="esqueci" novalidate><div class="msg" hidden></div>' +
+    '<label class="campo"><span>E-mail</span><input type="email" name="email" required autocomplete="username" inputmode="email"></label>' +
+    '<button class="btn primario grande">Enviar código</button></form>' +
+    '<div class="botoes"><button class="btn link" data-act="irLogin">Voltar para o login</button></div></div>');
+};
+
+R.forms.esqueci = function (d) {
+  if (!d.email) return Promise.reject(new Error('Informe o e-mail.'));
+  return R.exec('esqueciSenha', { email: d.email }).then(function () { R.ir('redefinir', { email: d.email }); });
+};
+
+R.telas.redefinir = function (d) {
+  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Criar nova senha</h2>' +
+    '<p class="muted">Se o e-mail estiver cadastrado, o código chega em alguns minutos. Olhe também a caixa de spam.</p>' +
+    '<form data-form="redefinir" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="email" value="' + R.esc(d.email) + '">' +
+    '<label class="campo"><span>Código recebido</span><input name="codigo" required autocomplete="one-time-code" autocapitalize="characters"></label>' +
+    R.campoSenha('novaSenha', 'Nova senha', 'new-password', AJUDA_SENHA) +
+    '<button class="btn primario grande">Salvar nova senha</button></form>' +
+    '<div class="botoes"><button class="btn link" data-act="irLogin">Voltar para o login</button></div></div>');
+};
+
+R.forms.redefinir = function (d) {
+  return R.exec('redefinirSenha', d).then(function () {
+    R.ir('login', { aviso: 'Senha alterada. Entre com a nova senha.', email: d.email });
+  });
+};
+
+R.telas.trocarSenha = function () {
+  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Crie sua senha</h2>' +
+    '<p class="muted">Por segurança, troque a senha temporária antes de continuar.</p>' +
+    '<form data-form="trocarObrigatoria" novalidate><div class="msg" hidden></div>' +
+    (R.senhaRecente ? '' : R.campoSenha('senhaAtual', 'Senha temporária', 'current-password')) +
+    R.campoSenha('novaSenha', 'Nova senha', 'new-password', AJUDA_SENHA) +
+    '<button class="btn primario grande">Salvar e continuar</button></form>' +
+    '<div class="botoes"><button class="btn link" data-act="sair">Sair</button></div></div>');
+};
+
+R.forms.trocarObrigatoria = function (d) {
+  return R.exec('trocarSenha', { senhaAtual: R.senhaRecente || d.senhaAtual, novaSenha: d.novaSenha }).then(function (r) {
+    R.senhaRecente = '';
+    R.toast('Senha criada.');
+    R.entrar(r);
+  });
+};
+
+// Depois do login (ou ao reabrir o app com a sessão ainda válida).
+R.entrar = function (r) {
+  R.usuario = r.usuario;
+  R.empresas = r.empresas || [];
+  if (R.usuario.trocarSenha) { R.ir('trocarSenha'); return; }
+  var salva = R.ler('rural_empresa');
+  var empresa = R.empresas.filter(function (e) { return e.id === salva; })[0];
+  if (!empresa && R.empresas.length === 1) empresa = R.empresas[0];
+  if (empresa) return R.abrirEmpresa(empresa.id);
+  R.empresa = null;
+  if (R.empresas.length) R.ir('escolher');
+  else R.ir(R.usuario.perfil === 'contador' ? 'empresas' : 'semEmpresa');
+};
+
+R.abrirEmpresa = function (id) {
+  return R.exec('abrirEmpresa', { empresaId: id }).then(function (r) {
+    R.empresa = r.empresa;
+    R.guardar('rural_empresa', id);
+    R.ir('inicio');
+  }, function (e) {
+    if (e.tratado) return;
+    R.guardar('rural_empresa', '');
+    R.empresa = null;
+    R.toast(e.message, true);
+    R.ir(R.empresas.length ? 'escolher' : 'semEmpresa');
+  });
+};
+
+R.telas.escolher = function () {
+  R.pintar('<h1>Escolha a empresa</h1><p class="muted">Você tem acesso às empresas abaixo.</p>' +
+    R.empresas.map(function (e) {
+      return '<button class="item" data-act="abrirEmpresa" data-id="' + R.esc(e.id) + '"><b>' + R.esc(e.nome) + '</b><small>' +
+        R.esc(R.fmtDoc(e.documento)) + ' · ' + R.esc(e.municipio) + '/' + R.esc(e.uf) + '</small>' +
+        (e.ativa ? '' : '<span class="selo off">Inativa</span>') + '</button>';
+    }).join(''));
+};
+
+R.acoes.abrirEmpresa = function (el) { return R.abrirEmpresa(el.dataset.id); };
+R.acoes.escolherEmpresa = function () { R.ir('escolher'); };
+
+R.telas.semEmpresa = function () {
+  R.pintar('<div class="card"><h2>Nenhuma empresa liberada</h2><p class="muted">Seu usuário ainda não tem acesso a nenhuma empresa. Fale com o escritório de contabilidade.</p>' +
+    '<div class="botoes"><button class="btn" data-act="sair">Sair</button></div></div>');
+};
+
+R.acoes.sair = function () {
+  R.ocupado(true);
+  return R.chamar('sair').catch(function () { }).then(function () {
+    R.ocupado(false);
+    R.encerrar();
+  });
+};
+
+// Limpa tudo do aparelho e volta para o login.
+R.encerrar = function () {
+  R.token = ''; R.usuario = null; R.empresas = []; R.empresa = null; R.senhaRecente = '';
+  R.guardar('rural_sessao', '');
+  R.guardar('rural_empresa', '');
+  R.ir('login');
+};
+
+/* Início e Minha conta. */
+R.telas.inicio = function () {
+  var e = R.empresa, contador = R.usuario.perfil === 'contador';
+  R.pintar('<h1>Olá, ' + R.esc(R.usuario.nome.split(' ')[0]) + '</h1>' +
+    '<p class="muted">' + (contador ? 'Área contábil' : 'Área do produtor') + '</p>' +
+    '<div class="card destaque"><h2>' + R.esc(e.nome) + '</h2><dl class="dados">' +
+    '<dt>CPF/CNPJ</dt><dd>' + R.esc(R.fmtDoc(e.documento)) + '</dd>' +
+    (e.inscricaoEstadual ? '<dt>Inscrição estadual</dt><dd>' + R.esc(e.inscricaoEstadual) + '</dd>' : '') +
+    '<dt>Município</dt><dd>' + R.esc(e.municipio) + '/' + R.esc(e.uf) + '</dd>' +
+    '<dt>Início no sistema</dt><dd>' + R.esc(R.fmtData(e.dataInicio)) + '</dd></dl></div>' +
+    '<div class="card"><h3>Em preparação</h3><p class="muted">O acesso está pronto. Os próximos módulos aparecem aqui conforme forem liberados:</p>' +
+    '<ul class="proximos"><li>Lançamento de compras e vendas</li><li>Espelho de nota</li><li>Contas a pagar e a receber</li><li>Fluxo de caixa e DRE</li></ul></div>');
+};
+
+R.telas.conta = function () {
+  var u = R.usuario;
+  R.pintar('<h1>Minha conta</h1><div class="card"><dl class="dados"><dt>Nome</dt><dd>' + R.esc(u.nome) + '</dd><dt>E-mail</dt><dd>' + R.esc(u.email) + '</dd>' +
+    '<dt>Perfil</dt><dd>' + (u.perfil === 'contador' ? 'Contador' : 'Produtor') + '</dd></dl></div>' +
+    '<form class="card" data-form="trocarSenha" novalidate><h2>Trocar a senha</h2><div class="msg" hidden></div>' +
+    R.campoSenha('senhaAtual', 'Senha atual', 'current-password') +
+    R.campoSenha('novaSenha', 'Nova senha', 'new-password', AJUDA_SENHA) +
+    '<button class="btn primario grande">Salvar nova senha</button></form>' +
+    '<div class="botoes"><button class="btn perigo" data-act="sair">Sair do sistema</button></div>');
+};
+
+R.forms.trocarSenha = function (d, form) {
+  return R.exec('trocarSenha', { senhaAtual: d.senhaAtual, novaSenha: d.novaSenha }).then(function () {
+    form.reset();
+    var c = form.querySelector('.msg');
+    c.className = 'msg alerta ok'; c.textContent = 'Senha alterada. Os outros aparelhos foram desconectados.'; c.hidden = false;
+  });
+};
+
+/* Área do contador: empresas e usuários. */
+R.telas.empresas = function () {
+  return R.exec('listarEmpresas').then(function (r) {
+    R.empresas = r.empresas;
+    R.pintar('<div class="titulo-linha"><h1>Empresas</h1><button class="btn primario" data-act="novaEmpresa">Nova empresa</button></div>' +
+      (r.empresas.length ? r.empresas.map(function (e) {
+        return '<button class="item" data-act="editarEmpresa" data-id="' + R.esc(e.id) + '"><b>' + R.esc(e.nome) + '</b>' +
+          '<small>' + R.esc(R.fmtDoc(e.documento)) + ' · ' + R.esc(e.municipio) + '/' + R.esc(e.uf) + ' · início ' + R.esc(R.fmtData(e.dataInicio)) + '</small>' +
+          (e.ativa ? '' : '<span class="selo off">Inativa</span>') + '</button>';
+      }).join('') : '<div class="card"><h2>Cadastre a primeira empresa</h2><p class="muted">Cada empresa ganha uma planilha própria, guardada no seu Drive.</p></div>'));
+    if (R.empresa) R.empresa = r.empresas.filter(function (e) { return e.id === R.empresa.id; })[0] || null;
+    R.atualizarMoldura();
+  });
+};
+
+R.acoes.novaEmpresa = function () { R.ir('formEmpresa', {}); };
+R.acoes.editarEmpresa = function (el) {
+  R.ir('formEmpresa', R.empresas.filter(function (e) { return e.id === el.dataset.id; })[0]);
+};
+R.acoes.irEmpresas = function () { R.ir('empresas'); };
+
+R.telas.formEmpresa = function (e) {
+  var novo = !e.id;
+  R.pintar('<h1>' + (novo ? 'Nova empresa' : 'Editar empresa') + '</h1><form class="card" data-form="empresa" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(e.id) + '">' +
+    '<label class="campo"><span>Nome do produtor ou razão social</span><input name="nome" required maxlength="120" value="' + R.esc(e.nome) + '"></label>' +
+    '<div class="grade2"><label class="campo"><span>CPF ou CNPJ</span><input name="documento" required inputmode="numeric" value="' + R.esc(R.fmtDoc(e.documento)) + '"></label>' +
+    '<label class="campo"><span>Inscrição estadual</span><input name="inscricaoEstadual" maxlength="30" value="' + R.esc(e.inscricaoEstadual) + '"></label></div>' +
+    '<div class="grade2"><label class="campo"><span>Município</span><input name="municipio" required maxlength="80" value="' + R.esc(e.municipio) + '"></label>' +
+    '<label class="campo"><span>Estado</span><select name="uf" required><option value="">Selecione</option>' +
+    R.UFS.map(function (u) { return '<option' + (u === e.uf ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></label></div>' +
+    '<label class="campo"><span>Data de início no sistema</span><input type="date" name="dataInicio" required value="' + R.esc(e.dataInicio) + '"><small>Os lançamentos começam a contar a partir desta data, sem saldo anterior.</small></label>' +
+    (novo ? '' : '<label class="check"><input type="checkbox" name="ativa" value="1"' + (e.ativa ? ' checked' : '') + '><span>Empresa ativa</span></label>') +
+    '<div class="botoes"><button type="button" class="btn" data-act="irEmpresas">Cancelar</button><button class="btn primario">Salvar</button></div></form>');
+};
+
+R.forms.empresa = function (d) {
+  if (d.id) d.ativa = d.ativa === '1';
+  return R.exec('salvarEmpresa', d).then(function (r) {
+    R.empresas = r.empresas;
+    R.toast('Empresa salva.');
+    R.ir('empresas');
+  });
+};
+
+// ---------- Usuários ----------
+R.telas.usuarios = function () {
+  return R.exec('listarUsuarios').then(function (r) {
+    R.listaUsuarios = r.usuarios;
+    R.empresas = r.empresas;
+    R.pintar('<div class="titulo-linha"><h1>Usuários</h1><button class="btn primario" data-act="novoUsuario">Novo usuário</button></div>' +
+      r.usuarios.map(function (u) {
+        return '<button class="item" data-act="editarUsuario" data-id="' + R.esc(u.id) + '"><b>' + R.esc(u.nome) + '</b><small>' + R.esc(u.email) + '</small>' +
+          '<span class="selo">' + (u.perfil === 'contador' ? 'Contador' : 'Produtor') + '</span>' +
+          '<span class="selo">' + u.empresaIds.length + (u.empresaIds.length === 1 ? ' empresa' : ' empresas') + '</span>' +
+          (u.ativo ? '' : '<span class="selo off">Inativo</span>') +
+          (u.trocarSenha && u.ativo ? '<span class="selo alerta-selo">Aguardando primeiro acesso</span>' : '') + '</button>';
+      }).join(''));
+  });
+};
+
+R.acoes.novoUsuario = function () { R.ir('formUsuario', { perfil: 'produtor', empresaIds: [] }); };
+R.acoes.editarUsuario = function (el) {
+  R.ir('formUsuario', R.listaUsuarios.filter(function (u) { return u.id === el.dataset.id; })[0]);
+};
+R.acoes.irUsuarios = function () { R.ir('usuarios'); };
+
+R.telas.formUsuario = function (u) {
+  var novo = !u.id, eu = u.id === R.usuario.id;
+  R.pintar('<h1>' + (novo ? 'Novo usuário' : 'Editar usuário') + '</h1><form class="card" data-form="usuario" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="id" value="' + R.esc(u.id) + '">' +
+    '<label class="campo"><span>Nome</span><input name="nome" required maxlength="120" value="' + R.esc(u.nome) + '"></label>' +
+    '<label class="campo"><span>E-mail de acesso</span><input type="email" name="email" required inputmode="email" value="' + R.esc(u.email) + '"></label>' +
+    (eu ? '<input type="hidden" name="perfil" value="' + R.esc(u.perfil) + '"><input type="hidden" name="ativo" value="1">' :
+      '<label class="campo"><span>Perfil</span><select name="perfil"><option value="produtor"' + (u.perfil === 'produtor' ? ' selected' : '') + '>Produtor (vê só a própria empresa)</option>' +
+      '<option value="contador"' + (u.perfil === 'contador' ? ' selected' : '') + '>Contador (área contábil)</option></select></label>' +
+      (novo ? '' : '<label class="check"><input type="checkbox" name="ativo" value="1"' + (u.ativo ? ' checked' : '') + '><span>Usuário ativo</span></label>')) +
+    (eu ? '' : '<h3>Empresas liberadas</h3>' + (R.empresas.length ? R.empresas.map(function (e) {
+      return '<label class="check"><input type="checkbox" name="empresaIds" value="' + R.esc(e.id) + '"' + (u.empresaIds.indexOf(e.id) >= 0 ? ' checked' : '') + '><span>' + R.esc(e.nome) + '</span></label>';
+    }).join('') : '<p class="muted">Cadastre uma empresa primeiro.</p>')) +
+    '<div class="botoes"><button type="button" class="btn" data-act="irUsuarios">Cancelar</button><button class="btn primario">Salvar</button></div></form>' +
+    (novo || eu ? '' : '<div class="botoes"><button class="btn" data-act="novaSenhaUsuario" data-id="' + R.esc(u.id) + '">Gerar senha temporária</button></div>'));
+};
+
+R.forms.usuario = function (d) {
+  d.empresaIds = d.empresaIds === undefined ? [] : [].concat(d.empresaIds);
+  var payload = { id: d.id, nome: d.nome, email: d.email, perfil: d.perfil, empresaIds: d.empresaIds };
+  if (d.id) payload.ativo = d.ativo === '1';
+  if (d.id === R.usuario.id) payload.empresaIds = R.empresas.map(function (e) { return e.id; });
+  return R.exec('salvarUsuario', payload).then(function (r) {
+    if (r.senhaTemporaria) { R.ir('senhaGerada', r); return; }
+    if (d.id === R.usuario.id) { R.usuario.nome = d.nome; R.usuario.email = d.email.trim().toLowerCase(); }
+    R.toast('Usuário salvo.');
+    R.ir('usuarios');
+  });
+};
+
+R.acoes.novaSenhaUsuario = function (el) {
+  if (!confirm('Gerar uma senha temporária? A senha atual deste usuário deixará de funcionar.')) return;
+  return R.exec('novaSenhaUsuario', { id: el.dataset.id }).then(function (r) { R.ir('senhaGerada', r); });
+};
+
+R.telas.senhaGerada = function (r) {
+  R.pintar('<h1>Senha temporária</h1><div class="card"><div class="alerta aviso">Anote ou envie agora. Esta senha não será mostrada de novo.</div>' +
+    '<dl class="dados"><dt>E-mail</dt><dd>' + R.esc(r.email) + '</dd></dl>' +
+    '<label class="campo" style="margin-top:12px"><span>Senha temporária</span><input id="senhaGerada" class="senha-gerada" readonly value="' + R.esc(r.senhaTemporaria) + '"></label>' +
+    '<p class="muted">No primeiro acesso, o sistema pedirá que a pessoa crie a própria senha.</p>' +
+    '<div class="botoes"><button class="btn" data-act="copiarSenha">Copiar</button><button class="btn primario" data-act="irUsuarios">Concluir</button></div></div>');
+};
+
+R.acoes.copiarSenha = function () {
+  var c = R.el('senhaGerada');
+  c.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { }
+  R.toast(ok ? 'Senha copiada.' : 'Selecione o texto e copie manualmente.', !ok);
+};
+
+/* Moldura do app (topo e navegação) e inicialização. */
+var ICONES_R = {
+  inicio: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  empresas: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/>',
+  usuarios: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-4 3.2-6 6.5-6s5.800 2 6.500 6M16 4.800a3.500 3.500 0 0 1 0 6.400M18.500 14.500c1.700.8 2.700 2.600 3 5.500"/>',
+  conta: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>'
+};
+
+var TELAS_COM_NAV_R = { inicio: 'inicio', empresas: 'empresas', formEmpresa: 'empresas', usuarios: 'usuarios', formUsuario: 'usuarios', senhaGerada: 'usuarios', conta: 'conta', escolher: '', semEmpresa: '' };
+
+R.atualizarMoldura = function () {
+  var logado = !!R.usuario && !R.usuario.trocarSenha;
+  var nav = R.el('nav'), secao = TELAS_COM_NAV_R[R.tela];
+  R.el('topo').hidden = !logado;
+  nav.hidden = !logado;
+  var troca = R.el('trocaEmpresa');
+  troca.hidden = !logado || !R.empresa || R.empresas.length < 2;
+  if (logado && R.empresa) {
+    R.el('marca').textContent = R.empresa.nome;
+    troca.textContent = 'Trocar empresa';
+  } else R.el('marca').textContent = 'Sistema Rural';
+  if (!logado) return;
+  var itens = [];
+  if (R.empresa) itens.push(['inicio', 'Início']);
+  if (R.usuario.perfil === 'contador') itens.push(['empresas', 'Empresas'], ['usuarios', 'Usuários']);
+  itens.push(['conta', 'Conta']);
+  nav.innerHTML = itens.map(function (i) {
+    return '<button data-act="nav" data-tela="' + i[0] + '"' + (secao === i[0] ? ' class="ativo" aria-current="page"' : '') + '>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONES_R[i[0]] + '</svg>' + i[1] + '</button>';
+  }).join('');
+};
+
+R.acoes.nav = function (el) { R.ir(el.dataset.tela); };
+
+R.iniciar = function () {
+  R.token = R.ler('rural_sessao');
+  if (!R.token) { R.ir('login'); return; }
+  R.chamar('eu').then(R.entrar).catch(function (e) {
+    if (e.sessaoExpirada) { R.encerrar(); return; }
+    R.token = '';
+    R.ir('login');
+    R.toast(e.message, true);
+  });
+};
+
+</script>
+<script>R.iniciar();</script>
+</body>
+</html>
