@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "93ec4f613163";</script>
+<script>window.R_VERSAO = "db13087457fd";</script>
 
 <style>
 :root {
@@ -155,6 +155,46 @@ table.tabela td:not(:first-child), table.tabela th:not(:first-child) { text-alig
 .plano .pl-a:hover { background: var(--pri-claro); }
 .plano .cod { color: var(--muted); font-family: Consolas, Menlo, monospace; font-size: .85rem; }
 @media (max-width: 380px) { .grade3 { grid-template-columns: 1fr 1fr; } .grade3 .campo:last-child { grid-column: span 2; } }
+
+/* ---------- Fase 2: espelho de nota ---------- */
+.selo.erro-selo { background: var(--erro-bg); color: var(--erro); }
+.selo.ok-selo { background: var(--ok-bg); color: var(--ok); }
+.txt-aviso { color: var(--aviso); }
+h2.grupo { margin: 18px 0 8px; font-size: 1rem; }
+h2.grupo .cont { display: inline-block; min-width: 24px; text-align: center; background: var(--pri-claro); color: var(--pri-escuro); border-radius: 99px; font-size: .8rem; padding: 1px 7px; margin-left: 4px; }
+.titulo-linha .selo { margin: 0; }
+.doc-espelho { background: #fff; color: #111; border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px; margin: 0 0 12px; font-size: .9rem; }
+.doc-marca { text-align: center; font-weight: 800; letter-spacing: .04em; color: #9a1c14; border: 2px solid #9a1c14; border-radius: 8px; padding: 6px; margin-bottom: 12px; }
+.doc-topo { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.doc-pessoas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .doc-pessoas { grid-template-columns: 1fr; } }
+.doc-bloco { border: 1px solid #d6d6d6; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.doc-bloco h4 { margin: 0 0 4px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #555; }
+.doc-itens { width: 100%; border-collapse: collapse; margin: 0 0 8px; font-size: .82rem; }
+.doc-itens th, .doc-itens td { border: 1px solid #d6d6d6; padding: 4px 5px; }
+.doc-itens th { background: #f2f2f2; text-align: left; font-size: .72rem; }
+.doc-itens td:nth-child(n+4) { text-align: right; white-space: nowrap; }
+.doc-espelho { overflow-x: auto; }
+.doc-totais { width: 100%; max-width: 320px; margin: 0 0 10px auto; border-collapse: collapse; }
+.doc-totais td { padding: 3px 4px; border-bottom: 1px solid #e3e3e3; }
+.doc-totais td:last-child { text-align: right; white-space: nowrap; }
+.doc-totais tr.forte td { font-weight: 800; border-bottom: 0; }
+.doc-assinatura { margin: 16px 0 6px; display: grid; gap: 14px; font-size: .85rem; }
+.doc-rodape { font-size: .75rem; color: #555; text-align: center; margin: 8px 0 0; }
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff; }
+  header.topo, nav#nav, #toasts, #busy, .nao-imprimir { display: none !important; }
+  main { padding: 0; max-width: none; }
+  .doc-espelho { border: 0; padding: 0; font-size: 10.5pt; overflow: visible; }
+  .doc-pessoas { grid-template-columns: 1fr 1fr; }
+}
+@media screen and (max-width: 560px) {
+  .doc-espelho { padding: 12px 10px; }
+  .doc-itens { font-size: .74rem; }
+  .doc-itens th, .doc-itens td { padding: 3px 3px; }
+  .doc-itens th:nth-child(3), .doc-itens td:nth-child(3) { display: none; } /* CFOP: aparece na impressão */
+}
 
 </style>
 </head>
@@ -507,6 +547,7 @@ R.telas.inicio = function () {
     '<p class="muted">' + (contador ? 'Área contábil' : 'Área do produtor') + ' · ' + R.esc(e.nome) + '</p>' +
     '<div class="acoes-grandes"><button class="btn primario grande" data-act="novaCompra">+ Lançar compra ou despesa</button>' +
     '<button class="btn primario grande" data-act="novaVenda">+ Lançar venda</button></div>' +
+    '<button class="item" data-act="irNotas"><b>Notas e espelhos</b><small>Espelhos para o cliente aprovar e registro das notas fiscais</small></button>' +
     '<div id="inicioMes"><div class="card"><p class="muted">Carregando o mês...</p></div></div>');
   return R.carregarMes(mes).then(function (lancs) {
     if (R.tela !== 'inicio') return;
@@ -664,12 +705,17 @@ R.acoes.copiarSenha = function () {
 /* Cadastros da empresa: itens, clientes, fornecedores e contas (caixa/bancos). */
 R.abaCadastro = 'itens';
 
-R.ABAS_CAD = [['itens', 'Itens'], ['clientes', 'Clientes'], ['fornecedores', 'Fornecedores'], ['contas', 'Caixa e bancos']];
+R.ABAS_CAD = [['itens', 'Itens'], ['clientes', 'Clientes'], ['fornecedores', 'Fornecedores'], ['contas', 'Caixa e bancos'], ['emitente', 'Emitente']];
 
-R.telas.cadastros = function () {
-  var aba = R.abaCadastro, c = R.cad, html = '<h1>Cadastros</h1><div class="seg" role="tablist">' + R.ABAS_CAD.map(function (a) {
+R.segCadastros = function (aba) {
+  return '<div class="seg" role="tablist">' + R.ABAS_CAD.map(function (a) {
     return '<button role="tab" data-act="abaCad" data-aba="' + a[0] + '" aria-selected="' + (a[0] === aba) + '"' + (a[0] === aba ? ' class="ativo"' : '') + '>' + a[1] + '</button>';
   }).join('') + '</div>';
+};
+
+R.telas.cadastros = function () {
+  if (R.abaCadastro === 'emitente') { R.ir('formEmitente'); return; }
+  var aba = R.abaCadastro, c = R.cad, html = '<h1>Cadastros</h1>' + R.segCadastros(aba);
   var novo = { itens: 'Novo item', clientes: 'Novo cliente', fornecedores: 'Novo fornecedor', contas: 'Nova conta' }[aba];
   html += '<div class="botoes" style="margin:0 0 12px"><button class="btn primario" data-act="novoCad">' + novo + '</button></div>';
   var lista = c[aba] || [];
@@ -1194,6 +1240,7 @@ R.acoes.novoClienteLanc = function () { R.retorno = { campo: 'cliente' }; R.ir('
 R.voltarAoLancamento = function (reg) {
   var rt = R.retorno;
   R.retorno = null;
+  if (rt.campo === 'espelho') return R.gerarEspelho(rt.lancId).catch(function (e) { if (!e.tratado) R.toast(e.message, true); });
   if (reg && rt.campo === 'item' && R.L.itens[rt.idx]) {
     var li = R.L.itens[rt.idx];
     li.itemId = reg.id;
@@ -1255,6 +1302,7 @@ R.telas.lancamentos = function (d) {
       '<div class="cards"><div class="kpi"><span>Compras e despesas</span><b>' + R.fmtR(s.compras) + '</b><small>' + s.nCompras + ' lançamento(s)</small></div>' +
       '<div class="kpi"><span>Vendas lançadas</span><b>' + R.fmtR(s.vendas) + '</b><small>' + s.nVendas + ' venda(s)' + (s.aguardando ? ' · ' + s.aguardando + ' aguardando nota' : '') + '</small></div></div>' +
       '<div class="botoes acoes-lanc"><button class="btn primario" data-act="novaCompra">+ Compra ou despesa</button><button class="btn primario" data-act="novaVenda">+ Venda</button></div>' +
+      '<button class="item" data-act="irNotas"><b>Notas e espelhos</b><small>Vendas a clientes que aguardam espelho, aprovação ou nota fiscal</small></button>' +
       (lancs.length ? lancs.map(R.cartaoLanc).join('') : '<div class="card"><p class="muted">Nenhum lançamento neste mês.</p></div>'));
   });
 };
@@ -1266,7 +1314,7 @@ R.cartaoLanc = function (l) {
   return '<button class="item lanc ' + l.tipo + '" data-act="abrirLanc" data-id="' + R.esc(l.id) + '"><div class="lanc-linha"><b>' + R.esc(nome) + '</b>' +
     '<b class="valor">' + (l.tipo === 'compra' ? '− ' : '+ ') + R.fmtR(l.total) + '</b></div>' +
     '<small>' + R.fmtData(l.data) + ' · ' + (l.tipo === 'compra' ? 'Compra' : 'Venda') + ' · ' + R.esc(R.rotulo(R.FORMAS, l.formaPagamento)) + (l.condicao === 'prazo' ? ' · ' + l.parcelas.length + 'x' : '') + '</small>' +
-    '<small>' + R.esc(itens) + '</small>' + (st[1] ? '<span class="selo ' + st[1] + '">' + st[0] + '</span>' : '') + '</button>';
+    '<small>' + R.esc(itens) + '</small>' + (l.espelho ? R.seloEspelho(l.espelho) : st[1] ? '<span class="selo ' + st[1] + '">' + st[0] + '</span>' : '') + '</button>';
 };
 
 R.acoes.mesLanc = function (el) {
@@ -1283,7 +1331,7 @@ R.telas.detalheLanc = function (l) {
   var html = '<div class="titulo-linha"><h1>' + (l.tipo === 'compra' ? 'Compra' : 'Venda') + ' de ' + R.fmtData(l.data) + '</h1></div>' +
     '<div class="card destaque"><div class="lanc-linha"><b>' + R.esc(l.pessoaNome || (l.tipo === 'venda' ? 'Consumidor não identificado' : 'Sem fornecedor')) + '</b><b>' + R.fmtR(l.total) + '</b></div>' +
     '<span class="selo ' + st[1] + '">' + st[0] + '</span>' +
-    (l.status === 'aguardando_nota' ? '<p class="muted">Esta venda entra no faturamento quando a nota fiscal for registrada (próxima fase do sistema).</p>' : '') +
+    (l.status === 'aguardando_nota' ? '<p class="muted">Esta venda entra no faturamento quando a nota fiscal for registrada.</p>' : '') +
     '<dl class="dados" style="margin-top:10px"><dt>Pagamento</dt><dd>' + R.esc(R.rotulo(R.FORMAS, l.formaPagamento)) + ' · ' + (l.condicao === 'prazo' ? 'a prazo' : 'à vista') + '</dd>' +
     (conta ? '<dt>' + (l.tipo === 'compra' ? 'Saiu de' : 'Entrou em') + '</dt><dd>' + R.esc(conta.nome) + '</dd>' : '') +
     (cat ? '<dt>Categoria</dt><dd>' + R.esc(cat.nome) + '</dd>' : '') +
@@ -1309,8 +1357,18 @@ R.telas.detalheLanc = function (l) {
         return '<tr><td>' + R.esc(p.contaId + ' ' + (c ? c.nome : '')) + (it ? '<br><small class="muted">' + R.esc(it.nome) + '</small>' : '') + '</td><td>' + (p.debito ? R.fmtR(p.debito) : '') + '</td><td>' + (p.credito ? R.fmtR(p.credito) : '') + '</td></tr>';
       }).join('') + '</tbody></table>' : '<p class="muted">Ainda não contabilizado.</p>') + '</div>';
   }
-  html += '<div class="botoes"><button class="btn" data-act="voltarLancs">Voltar</button><button class="btn" data-act="editarLanc" data-id="' + R.esc(l.id) + '">Editar</button>' +
-    '<button class="btn perigo" data-act="excluirLanc" data-id="' + R.esc(l.id) + '">Excluir</button></div>';
+  var comNota = l.espelho && l.espelho.situacao === 'emitida';
+  if (l.tipo === 'venda' && (l.espelho || l.status === 'aguardando_nota')) {
+    html += '<div class="card"><h2>Nota fiscal</h2>' + (l.espelho ?
+      '<p>Espelho nº ' + l.espelho.numero + (l.espelho.versao > 1 ? ' (versão ' + l.espelho.versao + ')' : '') + ' ' + R.seloEspelho(l.espelho) + '</p>' +
+      '<div class="botoes"><button class="btn primario" data-act="abrirEspelho" data-id="' + R.esc(l.espelho.id) + '">Ver espelho</button></div>' :
+      '<p class="muted">Gere o espelho para o cliente conferir antes da emissão da nota.</p><div class="botoes"><button class="btn primario" data-act="gerarEspelho" data-lanc="' + R.esc(l.id) + '">Gerar espelho de nota</button></div>') +
+      '</div>';
+  }
+  html += '<div class="botoes"><button class="btn" data-act="voltarLancs">Voltar</button>' +
+    (comNota ? '' : '<button class="btn" data-act="editarLanc" data-id="' + R.esc(l.id) + '">Editar</button><button class="btn perigo" data-act="excluirLanc" data-id="' + R.esc(l.id) + '">Excluir</button>') + '</div>' +
+    (comNota ? '<p class="muted">Venda com nota fiscal registrada não pode ser alterada. Se precisar corrigir, abra o espelho e cancele o registro da nota.</p>' : '') +
+    (l.espelho && !comNota ? '<p class="muted">Se você alterar esta venda, o espelho precisará ser gerado e aprovado de novo.</p>' : '');
   R.pintar(html);
 };
 
@@ -1321,6 +1379,255 @@ R.acoes.excluirLanc = function (el) {
     R.toast('Lançamento excluído.');
     R.ir('lancamentos');
   });
+};
+
+/* Fase 2: emitente, espelho de nota, aprovação do cliente e registro da nota fiscal. */
+R.SIT_ESPELHO = {
+  rascunho: ['Espelho desatualizado', 'alerta-selo'], aguardando: ['Aguardando aprovação', 'alerta-selo'],
+  aprovado: ['Aprovado – falta a nota', ''], recusado: ['Recusado pelo cliente', 'erro-selo'], emitida: ['Nota fiscal registrada', 'ok-selo']
+};
+R.MEIOS = [['impresso', 'Espelho impresso e assinado'], ['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['pessoalmente', 'Pessoalmente'], ['telefone', 'Telefone'], ['outro', 'Outro']];
+R.seloEspelho = function (e) {
+  var s = R.SIT_ESPELHO[e.situacao] || [e.situacao, ''];
+  return '<span class="selo ' + s[1] + '">' + (e.situacao === 'emitida' ? 'NF ' + e.nfNumero + ' série ' + e.nfSerie : s[0]) + '</span>';
+};
+R.agoraLocal = function () {
+  var d = new Date(), p = function (n) { return ('0' + n).slice(-2); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+};
+R.fmtDataHora = function (s) { return s ? R.fmtData(s.slice(0, 10)) + ' ' + s.slice(11, 16) : ''; };
+R.fmtCep = function (c) { return c ? String(c).replace(/(\d{5})(\d{3})/, '$1-$2') : ''; };
+
+// ---------- Emitente (aba em Cadastros) ----------
+R.telas.formEmitente = function () {
+  var m = R.cad.emitente || {}, contador = R.usuario.perfil === 'contador';
+  R.abaCadastro = 'emitente';
+  R.pintar('<h1>Cadastros</h1>' + R.segCadastros('emitente') + '<h2>Dados do emitente</h2><p class="muted">Aparecem no espelho de nota como quem vende.</p>' +
+    '<div class="card"><dl class="dados"><dt>Nome</dt><dd>' + R.esc(m.nome) + '</dd><dt>CPF/CNPJ</dt><dd>' + R.esc(R.fmtDoc(m.documento)) + '</dd>' +
+    '<dt>Inscrição estadual</dt><dd>' + (m.inscricaoEstadual ? R.esc(m.inscricaoEstadual) : '<b class="txt-aviso">Não informada</b>') + '</dd>' +
+    '<dt>Município</dt><dd>' + R.esc(m.municipio + '/' + m.uf) + '</dd></dl>' +
+    '<p class="muted" style="margin-bottom:0">' + (contador ? 'Para mudar estes dados, use Escritório > Empresas.' : 'Estes dados são alterados pelo escritório de contabilidade.') + '</p></div>' +
+    '<form class="card" data-form="emitente" novalidate><div class="msg" hidden></div>' +
+    R.campo('logradouro', 'Endereço (rua, estrada, sítio, fazenda)', m.logradouro, 'maxlength="120"') +
+    '<div class="grade2">' + R.campo('numero', 'Número (ou S/N)', m.numero, 'maxlength="20"') + R.campo('bairro', 'Bairro ou localidade', m.bairro, 'maxlength="80"') + '</div>' +
+    '<div class="grade2">' + R.campo('cep', 'CEP', R.fmtCep(m.cep), 'inputmode="numeric" maxlength="9"') + R.campo('telefone', 'Telefone', m.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    R.campo('email', 'E-mail', m.email, 'type="email" inputmode="email"') +
+    '<div class="botoes"><button class="btn primario">Salvar</button></div></form>');
+};
+
+R.forms.emitente = function (d, form) {
+  d.empresaId = R.empresa.id;
+  return R.exec('salvarEmitente', d).then(function (r) {
+    R.cad.emitente = r.emitente;
+    R.toast('Dados do emitente salvos.');
+    if (R.voltarParaEspelho) { var lid = R.voltarParaEspelho; R.voltarParaEspelho = null; return R.gerarEspelho(lid); }
+    R.ir('cadastros');
+  });
+};
+
+// ---------- Pendências ----------
+R.telas.notas = function () {
+  return R.exec('listarNotas', { empresaId: R.empresa.id }).then(function (r) {
+    var p = r.pendentes, grupos = [
+      ['Sem espelho ainda', p.filter(function (x) { return !x.espelho; })],
+      ['Espelho desatualizado (a venda mudou)', p.filter(function (x) { return x.espelho && x.espelho.situacao === 'rascunho'; })],
+      ['Aguardando aprovação do cliente', p.filter(function (x) { return x.espelho && x.espelho.situacao === 'aguardando'; })],
+      ['Recusados pelo cliente', p.filter(function (x) { return x.espelho && x.espelho.situacao === 'recusado'; })],
+      ['Aprovados – falta registrar a nota', p.filter(function (x) { return x.espelho && x.espelho.situacao === 'aprovado'; })]
+    ];
+    var html = '<div class="titulo-linha"><h1>Notas e espelhos</h1></div>' +
+      '<p class="muted">Vendas para clientes cadastrados só entram no faturamento depois que a nota fiscal é registrada.</p>';
+    var algum = false;
+    grupos.forEach(function (g) {
+      if (!g[1].length) return;
+      algum = true;
+      html += '<h2 class="grupo">' + g[0] + ' <span class="cont">' + g[1].length + '</span></h2>' + g[1].map(R.cartaoNota).join('');
+    });
+    if (!algum) html += '<div class="card"><p class="muted">Nenhuma venda aguardando nota fiscal.</p></div>';
+    if (r.emitidas.length) html += '<h2 class="grupo">Notas registradas recentemente</h2>' + r.emitidas.map(R.cartaoNota).join('');
+    R.pintar(html);
+  });
+};
+
+R.cartaoNota = function (x) {
+  var acao = x.espelho ? 'data-act="abrirEspelho" data-id="' + R.esc(x.espelho.id) + '"' : 'data-act="gerarEspelho" data-lanc="' + R.esc(x.id) + '"';
+  return '<button class="item" ' + acao + '><div class="lanc-linha"><b>' + R.esc(x.pessoaNome) + '</b><b class="valor">' + R.fmtR(x.total) + '</b></div>' +
+    '<small>Venda de ' + R.fmtData(x.data) + (x.espelho ? ' · espelho nº ' + x.espelho.numero + (x.espelho.versao > 1 ? ' (versão ' + x.espelho.versao + ')' : '') : '') + '</small>' +
+    (x.espelho ? R.seloEspelho(x.espelho) : '<span class="selo">Toque para gerar o espelho</span>') + '</button>';
+};
+
+R.acoes.irNotas = function () { R.ir('notas'); };
+R.acoes.abrirEspelho = function (el) { return R.abrirEspelho(el.dataset.id); };
+R.acoes.gerarEspelho = function (el) { return R.gerarEspelho(el.dataset.lanc); };
+
+R.abrirEspelho = function (id) {
+  return R.exec('abrirEspelho', { empresaId: R.empresa.id, espelhoId: id }).then(function (r) { R.ir('espelho', r); });
+};
+
+R.gerarEspelho = function (lancId) {
+  return R.exec('gerarEspelho', { empresaId: R.empresa.id, lancamentoId: lancId }).then(function (r) {
+    R.toast('Espelho gerado.');
+    R.ir('espelho', { espelho: r.espelho, anteriores: [] });
+  }, function (e) {
+    if (e.tratado) throw e;
+    // Leva direto ao cadastro que falta completar
+    if (/dados do emitente/.test(e.message)) {
+      R.toast(e.message, true); R.voltarParaEspelho = lancId; R.ir('formEmitente'); e.tratado = true;
+    } else if (/cadastro do cliente/.test(e.message)) {
+      var l = R.porId(R.lancs || [], lancId), cli = l ? R.porId(R.cad.clientes, l.pessoaId) : null;
+      R.toast(e.message, true);
+      if (cli) { R.retorno = { campo: 'espelho', lancId: lancId }; R.ir('formCliente', cli); }
+      e.tratado = true;
+    }
+    throw e;
+  });
+};
+
+// ---------- Documento do espelho ----------
+R.blocoPessoa = function (titulo, p) {
+  return '<div class="doc-bloco"><h4>' + titulo + '</h4><b>' + R.esc(p.nome) + '</b><br>' +
+    'CPF/CNPJ: ' + R.esc(R.fmtDoc(p.documento)) + (p.inscricaoEstadual ? ' · IE: ' + R.esc(p.inscricaoEstadual) : '') + '<br>' +
+    R.esc(p.logradouro + ', ' + p.numero + ' – ' + p.bairro) + '<br>' + R.esc(p.municipio + '/' + p.uf + ' · CEP ' + R.fmtCep(p.cep)) +
+    (p.telefone ? '<br>Tel.: ' + R.esc(p.telefone) : '') + '</div>';
+};
+
+R.docEspelho = function (e) {
+  var d = JSON.parse(e.dados);
+  return '<article class="doc-espelho"><div class="doc-marca">ESPELHO – SEM VALOR FISCAL</div>' +
+    '<div class="doc-topo"><div><b>Espelho de nota nº ' + e.numero + '</b>' + (e.versao > 1 ? ' (versão ' + e.versao + ')' : '') + '</div><div>Venda de ' + R.fmtData(d.data) + '</div></div>' +
+    '<div class="doc-pessoas">' + R.blocoPessoa('Emitente', d.emitente) + R.blocoPessoa('Destinatário', d.destinatario) + '</div>' +
+    '<table class="doc-itens"><thead><tr><th>Produto</th><th>NCM</th><th>CFOP</th><th>Un.</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>' +
+    d.itens.map(function (i) {
+      return '<tr><td>' + R.esc(i.nome) + '</td><td>' + R.esc(R.fmtNcm(i.ncm)) + '</td><td>' + R.esc(i.cfop) + '</td><td>' + R.esc(i.unidade) + '</td><td>' + R.fmtNum(i.quantidade) +
+        '</td><td>' + R.fmtR(Math.round(i.valorUnitario * 100)) + '</td><td>' + R.fmtR(i.valorTotal) + '</td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<table class="doc-totais"><tr><td>Total dos produtos</td><td>' + R.fmtR(d.valorItens) + '</td></tr>' +
+    (d.frete ? '<tr><td>Frete</td><td>' + R.fmtR(d.frete) + '</td></tr>' : '') + (d.acrescimos ? '<tr><td>Outras despesas</td><td>' + R.fmtR(d.acrescimos) + '</td></tr>' : '') +
+    (d.desconto ? '<tr><td>Desconto</td><td>− ' + R.fmtR(d.desconto) + '</td></tr>' : '') + '<tr class="forte"><td>Valor total da nota</td><td>' + R.fmtR(d.total) + '</td></tr></table>' +
+    '<div class="doc-bloco"><h4>Pagamento</h4>' + R.esc(R.rotulo(R.FORMAS, d.formaPagamento)) + ' · ' + (d.condicao === 'prazo' ? 'a prazo' : 'à vista') +
+    (d.parcelas.length ? '<br>' + d.parcelas.map(function (p) { return p.numero + 'ª: ' + R.fmtData(p.vencimento) + ' – ' + R.fmtR(p.valor); }).join('<br>') : '') + '</div>' +
+    (d.observacao ? '<div class="doc-bloco"><h4>Observação</h4>' + R.esc(d.observacao) + '</div>' : '') +
+    '<div class="doc-assinatura"><div>Conferido e aprovado por: ______________________________</div><div>Data: ____/____/______ &nbsp; Assinatura: ______________________</div></div>' +
+    '<p class="doc-rodape">Documento para conferência antes da emissão da nota fiscal. Não substitui a nota fiscal.</p></article>';
+};
+
+// ---------- Tela do espelho ----------
+R.telas.espelho = function (r) {
+  var e = r.espelho;
+  R.espAtual = r;
+  var acoes = '';
+  if (e.situacao === 'aguardando') {
+    acoes = '<div class="botoes"><button class="btn" data-act="imprimirEspelho">Imprimir ou salvar PDF</button><button class="btn" data-act="whatsEspelho">Enviar pelo WhatsApp</button></div>' +
+      '<div class="botoes"><button class="btn primario" data-act="irAprovacao">Registrar aprovação</button><button class="btn perigo" data-act="irRecusa">Registrar recusa</button></div>';
+  } else if (e.situacao === 'aprovado') {
+    acoes = '<div class="alerta ok">Aprovado por ' + R.esc(e.aprovadoPor) + ' em ' + R.fmtDataHora(e.aprovadoEm) + ' (' + R.esc(R.rotulo(R.MEIOS, e.aprovadoMeio)) + '). Agora emita a nota fiscal e registre os dados dela aqui.</div>' +
+      '<div class="botoes"><button class="btn primario" data-act="irNota">Registrar nota fiscal</button><button class="btn" data-act="imprimirEspelho">Imprimir</button></div>';
+  } else if (e.situacao === 'recusado') {
+    acoes = '<div class="alerta erro"><b>Recusado pelo cliente:</b> ' + R.esc(e.recusaMotivo) + '</div>' +
+      '<p class="muted">Corrija a venda e gere o espelho de novo.</p><div class="botoes"><button class="btn primario" data-act="editarVendaEspelho">Corrigir a venda</button>' +
+      '<button class="btn" data-act="gerarEspelho" data-lanc="' + R.esc(e.lancamentoId) + '">Gerar espelho de novo</button></div>';
+  } else if (e.situacao === 'rascunho') {
+    acoes = '<div class="alerta aviso">A venda foi alterada depois deste espelho. Gere o espelho atualizado e peça uma nova aprovação ao cliente.</div>' +
+      '<div class="botoes"><button class="btn primario" data-act="gerarEspelho" data-lanc="' + R.esc(e.lancamentoId) + '">Gerar espelho atualizado</button></div>';
+  } else if (e.situacao === 'emitida') {
+    acoes = '<div class="alerta ok"><b>Nota fiscal registrada:</b> nº ' + e.nfNumero + ', série ' + e.nfSerie + ', emitida em ' + R.fmtData(e.nfData) +
+      (e.nfChave ? '<br><small>Chave: ' + R.esc(e.nfChave.replace(/(\d{4})/g, '$1 ')) + '</small>' : '') + '<br>A venda já entrou no faturamento.</div>' +
+      '<div class="botoes"><button class="btn" data-act="imprimirEspelho">Imprimir espelho</button><button class="btn perigo" data-act="cancelarNota">Cancelar registro da nota</button></div>';
+  }
+  var hist = (r.anteriores || []).length ? '<details class="card"><summary>Versões anteriores (' + r.anteriores.length + ')</summary><ul class="proximos">' +
+    r.anteriores.map(function (a) {
+      return '<li>Versão ' + a.versao + ' – gerada em ' + R.fmtDataHora(a.criadoEm.slice(0, 16)) + (a.aprovadoPor ? ' · aprovada por ' + R.esc(a.aprovadoPor) : '') +
+        (a.recusaMotivo ? ' · recusada: ' + R.esc(a.recusaMotivo) : '') + '</li>';
+    }).join('') + '</ul></details>' : '';
+  R.pintar('<div class="titulo-linha nao-imprimir"><h1>Espelho nº ' + e.numero + '</h1>' + R.seloEspelho(e) + '</div>' +
+    '<div class="nao-imprimir">' + acoes + '</div>' + R.docEspelho(e) + '<div class="nao-imprimir">' + hist +
+    '<div class="botoes"><button class="btn" data-act="irNotas">Voltar para notas</button></div></div>');
+};
+
+R.acoes.imprimirEspelho = function () { window.print(); };
+
+R.textoWhats = function (e) {
+  var d = JSON.parse(e.dados);
+  var t = 'ESPELHO DE NOTA Nº ' + e.numero + ' – SEM VALOR FISCAL\n\n' + d.emitente.nome + ' → ' + d.destinatario.nome + '\nVenda de ' + R.fmtData(d.data) + '\n\n' +
+    d.itens.map(function (i) { return '• ' + i.nome + ': ' + R.fmtNum(i.quantidade) + ' ' + i.unidade + ' × ' + R.fmtR(Math.round(i.valorUnitario * 100)) + ' = ' + R.fmtR(i.valorTotal); }).join('\n') +
+    (d.frete ? '\nFrete: ' + R.fmtR(d.frete) : '') + (d.acrescimos ? '\nOutras despesas: ' + R.fmtR(d.acrescimos) : '') + (d.desconto ? '\nDesconto: −' + R.fmtR(d.desconto) : '') +
+    '\n*Total: ' + R.fmtR(d.total) + '*\n\nPagamento: ' + R.rotulo(R.FORMAS, d.formaPagamento) + (d.condicao === 'prazo' ? ' a prazo' : ' à vista') +
+    (d.parcelas.length ? '\n' + d.parcelas.map(function (p) { return p.numero + 'ª parcela: ' + R.fmtData(p.vencimento) + ' – ' + R.fmtR(p.valor); }).join('\n') : '') +
+    '\n\nPor favor, confira e responda se está tudo certo para emitirmos a nota fiscal.';
+  return t;
+};
+
+R.acoes.whatsEspelho = function () {
+  var e = R.espAtual.espelho, d = JSON.parse(e.dados), tel = R.digitos(d.destinatario.telefone);
+  if (tel.length === 10 || tel.length === 11) tel = '55' + tel;
+  else if (!(tel.length >= 12 && tel.indexOf('55') === 0)) tel = '';
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(R.textoWhats(e)), '_blank', 'noopener');
+};
+R.digitos = function (v) { return String(v || '').replace(/\D/g, ''); };
+
+R.acoes.editarVendaEspelho = function () {
+  var lid = R.espAtual.espelho.lancamentoId, l = R.porId(R.lancs || [], lid);
+  var abrir = function (lanc) { R.ir('lancar', { editar: lanc }); };
+  if (l) return abrir(l);
+  // a venda pode ser de outro mês: busca pelo mês da data do espelho
+  var mes = JSON.parse(R.espAtual.espelho.dados).data.slice(0, 7);
+  return R.carregarMes(mes).then(function (lancs) { var x = R.porId(lancs, lid); if (x) abrir(x); else R.toast('Venda não encontrada.', true); });
+};
+
+R.acoes.cancelarNota = function () {
+  if (!confirm('Cancelar o registro desta nota fiscal? A venda sai do faturamento e volta a aguardar a nota. Use só para corrigir um registro errado.')) return;
+  return R.exec('cancelarNota', { empresaId: R.empresa.id, espelhoId: R.espAtual.espelho.id }).then(function () {
+    R.toast('Registro da nota cancelado.');
+    return R.abrirEspelho(R.espAtual.espelho.id);
+  });
+};
+
+// ---------- Aprovação, recusa e nota ----------
+R.acoes.irAprovacao = function () { R.ir('formAprovacao'); };
+R.acoes.irRecusa = function () { R.ir('formRecusa'); };
+R.acoes.irNota = function () { R.ir('formNota'); };
+R.acoes.voltarEspelho = function () { R.ir('espelho', R.espAtual); };
+
+R.cabecalhoDecisao = function (titulo) {
+  var e = R.espAtual.espelho, d = JSON.parse(e.dados);
+  return '<h1>' + titulo + '</h1><div class="card"><b>Espelho nº ' + e.numero + '</b> · ' + R.esc(d.destinatario.nome) + ' · ' + R.fmtR(d.total) + '</div>';
+};
+R.botoesDecisao = function (rotulo) {
+  return '<div class="botoes"><button type="button" class="btn" data-act="voltarEspelho">Cancelar</button><button class="btn primario">' + rotulo + '</button></div>';
+};
+
+R.telas.formAprovacao = function () {
+  R.pintar(R.cabecalhoDecisao('Registrar aprovação') + '<form class="card" data-form="aprovacao" novalidate><div class="msg" hidden></div>' +
+    R.campo('aprovadoPor', 'Quem aprovou (nome do cliente ou responsável)', '', 'required maxlength="120"') +
+    '<div class="grade2"><label class="campo"><span>Data e hora da aprovação</span><input type="datetime-local" name="aprovadoEm" value="' + R.agoraLocal() + '"></label>' +
+    '<label class="campo"><span>Como aprovou</span><select name="aprovadoMeio">' + R.opcoes(R.MEIOS, 'impresso') + '</select></label></div>' +
+    R.botoesDecisao('Confirmar aprovação') + '</form>');
+};
+R.forms.aprovacao = function (d) {
+  return R.exec('decidirEspelho', { empresaId: R.empresa.id, espelhoId: R.espAtual.espelho.id, aprovado: true, aprovadoPor: d.aprovadoPor, aprovadoEm: d.aprovadoEm, aprovadoMeio: d.aprovadoMeio })
+    .then(function () { R.toast('Aprovação registrada.'); return R.abrirEspelho(R.espAtual.espelho.id); });
+};
+
+R.telas.formRecusa = function () {
+  R.pintar(R.cabecalhoDecisao('Registrar recusa') + '<form class="card" data-form="recusa" novalidate><div class="msg" hidden></div>' +
+    R.campo('recusaMotivo', 'O que o cliente pediu para mudar?', '', 'required maxlength="300"') + R.botoesDecisao('Registrar recusa') + '</form>');
+};
+R.forms.recusa = function (d) {
+  return R.exec('decidirEspelho', { empresaId: R.empresa.id, espelhoId: R.espAtual.espelho.id, aprovado: false, recusaMotivo: d.recusaMotivo })
+    .then(function () { R.toast('Recusa registrada.'); return R.abrirEspelho(R.espAtual.espelho.id); });
+};
+
+R.telas.formNota = function () {
+  R.pintar(R.cabecalhoDecisao('Registrar nota fiscal') + '<form class="card" data-form="nota" novalidate><div class="msg" hidden></div>' +
+    '<p class="muted" style="margin-top:0">Depois de emitir a nota no sistema da Sefaz (ou no talão de produtor), informe os dados dela. A venda entra no faturamento na data da nota.</p>' +
+    '<div class="grade3">' + R.campo('numero', 'Número', '', 'inputmode="numeric" maxlength="9" required') + R.campo('serie', 'Série', '', 'inputmode="numeric" maxlength="3" required') +
+    '<label class="campo"><span>Emitida em</span><input type="date" name="data" value="' + R.hoje() + '"></label></div>' +
+    '<label class="campo"><span>Chave de acesso (44 números, se for NF-e)</span><input name="chave" inputmode="numeric" maxlength="60" placeholder="0000 0000 0000 ..."></label>' +
+    R.botoesDecisao('Registrar nota') + '</form>');
+};
+R.forms.nota = function (d) {
+  return R.exec('registrarNota', { empresaId: R.empresa.id, espelhoId: R.espAtual.espelho.id, numero: d.numero, serie: d.serie, data: d.data, chave: d.chave })
+    .then(function () { R.toast('Nota fiscal registrada. A venda entrou no faturamento.'); return R.abrirEspelho(R.espAtual.espelho.id); });
 };
 
 /* Moldura do app (topo e navegação) e inicialização. */
@@ -1335,6 +1642,7 @@ var ICONES_R = {
 // Tela -> item da barra de navegação que fica destacado
 var TELAS_COM_NAV_R = {
   inicio: 'inicio', lancamentos: 'lancamentos', detalheLanc: 'lancamentos', lancar: 'lancamentos',
+  notas: 'lancamentos', espelho: 'lancamentos', formAprovacao: 'lancamentos', formRecusa: 'lancamentos', formNota: 'lancamentos', formEmitente: 'cadastros',
   cadastros: 'cadastros', formItem: 'cadastros', formCliente: 'cadastros', formFornecedor: 'cadastros', formContaFin: 'cadastros',
   escritorio: 'escritorio', plano: 'escritorio', formConta: 'escritorio', empresas: 'escritorio', formEmpresa: 'escritorio',
   usuarios: 'escritorio', formUsuario: 'escritorio', senhaGerada: 'escritorio', conta: 'conta', escolher: '', semEmpresa: ''
