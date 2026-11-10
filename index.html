@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "677575729f3c";</script>
+<script>window.R_VERSAO = "f9b9b8645ae9";</script>
 
 <style>
 :root {
@@ -196,11 +196,35 @@ h2.grupo .cont { display: inline-block; min-width: 24px; text-align: center; bac
   .doc-itens th:nth-child(3), .doc-itens td:nth-child(3) { display: none; } /* CFOP: aparece na impressão */
 }
 
+/* ---------- Fase 3: financeiro ---------- */
+.item.parcela-item.vencida { border-left: 4px solid var(--erro); }
+.item.mov { cursor: default; }
+.item.mov .btn.link { padding: 4px 0; min-height: 32px; }
+.total-pago { background: var(--pri-claro); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+.kpi.neg b, td.neg { color: var(--erro); }
+td.pos { color: var(--ok); }
+small.prev, .prev { color: var(--muted); font-style: italic; }
+tr.linha-prev td { color: var(--muted); }
+.rolagem { overflow-x: auto; }
+table.fluxo td:first-child { white-space: nowrap; }
+.kpi.alerta { border-left: 4px solid var(--aviso); }
+table.mov-fluxo td:nth-child(2) { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+table.mov-fluxo td:first-child { white-space: nowrap; }
+@media (max-width: 560px) {
+  table.fluxo { font-size: .76rem; }
+  table.fluxo th, table.fluxo td { padding: 5px 2px; }
+  table.fluxo small { font-size: .68rem; }
+}
+
+/* ---------- Velocidade ---------- */
+#atualizando { flex: none; font-size: .78rem; background: rgba(255, 255, 255, .18); padding: 3px 8px; border-radius: 99px; }
+
 </style>
 </head>
 <body>
 <header class="topo" id="topo" hidden>
   <div id="marca">Sistema Rural</div>
+  <span id="atualizando" hidden>Atualizando…</span>
   <button class="btn-topo" id="trocaEmpresa" data-act="escolherEmpresa" hidden></button>
 </header>
 <main id="main"><div class="carregando">Carregando...</div></main>
@@ -288,7 +312,14 @@ R.toast = function (msg, erro) {
   setTimeout(function () { t.remove(); }, 4500);
 };
 
-R.ocupado = function (sim) { R.el('busy').hidden = !sim; };
+// "Aguarde" só aparece se a resposta demorar: evita piscar a tela em respostas rápidas.
+R.nOcupado = 0;
+R.ocupado = function (sim) {
+  R.nOcupado = Math.max(0, R.nOcupado + (sim ? 1 : -1));
+  clearTimeout(R.tOcupado);
+  if (R.nOcupado) R.tOcupado = setTimeout(function () { if (R.nOcupado) R.el('busy').hidden = false; }, 350);
+  else R.el('busy').hidden = true;
+};
 
 R.tratarResposta = function (txt) {
   var r;
@@ -334,19 +365,52 @@ R.chamar = function (acao, payload) {
   });
 };
 
+// Ações que só leem dados: as demais (gravações) apagam o que estava guardado nas telas.
+R.LEITURAS = ['ping', 'eu', 'abrirEmpresa', 'dadosEmpresa', 'listarLancamentos', 'listarAbertos', 'listarMovimentos', 'fluxoCaixa',
+  'listarNotas', 'abrirEspelho', 'listarEmpresas', 'listarUsuarios'];
+R.cacheDados = {};
+
+R.tratarErroSessao = function (e) {
+  if (e.sessaoExpirada && R.token) { R.encerrar(); R.toast(e.message, true); e.tratado = true; }
+  else if (e.trocarSenha) { R.ir('trocarSenha'); e.tratado = true; }
+  throw e;
+};
+
 // Executa uma ação mostrando "Aguarde" e tratando sessão vencida e troca obrigatória de senha.
 R.exec = function (acao, payload) {
   R.ocupado(true);
   return R.chamar(acao, payload).then(function (r) {
     R.ocupado(false);
+    if (R.LEITURAS.indexOf(acao) < 0) R.cacheDados = {};
     return r;
   }, function (e) {
     R.ocupado(false);
-    if (e.sessaoExpirada && R.token) { R.encerrar(); R.toast(e.message, true); e.tratado = true; }
-    else if (e.trocarSenha) { R.ir('trocarSenha'); e.tratado = true; }
+    return R.tratarErroSessao(e);
+  });
+};
+
+// Mostra na hora o que já foi carregado antes e busca a versão nova por trás.
+// Só redesenha se algo mudou e se a pessoa ainda está na mesma tela.
+R.lerComCache = function (chave, acao, payload, desenhar) {
+  var tela = R.tela, guardado = R.cacheDados[chave];
+  var guardar = function (r) { var txt = JSON.stringify(r), mudou = !guardado || guardado.txt !== txt; R.cacheDados[chave] = { r: r, txt: txt }; return mudou; };
+  if (!guardado) return R.exec(acao, payload).then(function (r) { guardar(r); if (R.tela === tela) desenhar(r); return r; });
+  desenhar(guardado.r);
+  R.atualizando(true);
+  return R.chamar(acao, payload).then(function (r) {
+    R.atualizando(false);
+    if (guardar(r) && R.tela === tela) desenhar(r);
+    return r;
+  }, function (e) {
+    R.atualizando(false);
+    if (e.sessaoExpirada || e.trocarSenha) return R.tratarErroSessao(e);
+    R.toast('Sem conexão: mostrando os dados carregados antes.', true);
+    e.tratado = true;
     throw e;
   });
 };
+
+R.atualizando = function (sim) { var el = R.el('atualizando'); if (el) el.hidden = !sim; };
 
 R.erroForm = function (form, msg) {
   var caixa = form.querySelector('.msg');
@@ -493,9 +557,12 @@ R.entrar = function (r) {
 };
 
 R.abrirEmpresa = function (id) {
-  return R.exec('abrirEmpresa', { empresaId: id }).then(function (r) {
+  var mes = R.hoje().slice(0, 7);
+  return R.exec('abrirEmpresa', { empresaId: id, mes: mes }).then(function (r) {
+    R.cacheDados = {};
     R.empresa = r.empresa;
     R.cad = r.dados;
+    if (r.lancamentos) R.guardarMes(mes, r.lancamentos); // a tela de início já abre com os lançamentos do mês
     R.guardar('rural_empresa', id);
     R.ir('inicio');
   }, function (e) {
@@ -534,6 +601,7 @@ R.acoes.sair = function () {
 
 // Limpa tudo do aparelho e volta para o login.
 R.encerrar = function () {
+  R.cacheDados = {};
   R.token = ''; R.usuario = null; R.empresas = []; R.empresa = null; R.senhaRecente = '';
   R.guardar('rural_sessao', '');
   R.guardar('rural_empresa', '');
@@ -548,8 +616,9 @@ R.telas.inicio = function () {
     '<div class="acoes-grandes"><button class="btn primario grande" data-act="novaCompra">+ Lançar compra ou despesa</button>' +
     '<button class="btn primario grande" data-act="novaVenda">+ Lançar venda</button></div>' +
     '<button class="item" data-act="irNotas"><b>Notas e espelhos</b><small>Espelhos para o cliente aprovar e registro das notas fiscais</small></button>' +
+    '<button class="item" data-act="irFinanceiro" data-aba="pagar"><b>Contas a pagar e a receber</b><small>Registrar pagamentos e ver o que vence</small></button>' +
     '<div id="inicioMes"><div class="card"><p class="muted">Carregando o mês...</p></div></div>');
-  return R.carregarMes(mes).then(function (lancs) {
+  return R.lerMes(mes, function (lancs) {
     if (R.tela !== 'inicio') return;
     R.mesLanc = mes;
     var s = R.resumoMes(lancs);
@@ -573,6 +642,8 @@ R.telas.conta = function () {
     '<button class="btn primario grande">Salvar nova senha</button></form>' +
     '<div class="botoes"><button class="btn perigo" data-act="sair">Sair do sistema</button></div>');
 };
+
+R.telas.contaContador = function () { R.telas.conta(); };
 
 R.forms.trocarSenha = function (d, form) {
   return R.exec('trocarSenha', { senhaAtual: d.senhaAtual, novaSenha: d.novaSenha }).then(function () {
@@ -860,7 +931,42 @@ R.telas.escritorio = function () {
   R.pintar('<h1>Escritório</h1><p class="muted">Ferramentas do contador.</p>' +
     '<button class="item" data-act="nav" data-tela="plano"><b>Plano de contas</b><small>Contas e categorias da empresa aberta</small></button>' +
     '<button class="item" data-act="nav" data-tela="empresas"><b>Empresas</b><small>Cadastrar e editar empresas</small></button>' +
-    '<button class="item" data-act="nav" data-tela="usuarios"><b>Usuários</b><small>Acessos e senhas temporárias</small></button>');
+    '<button class="item" data-act="nav" data-tela="usuarios"><b>Usuários</b><small>Acessos e senhas temporárias</small></button>' +
+    '<button class="item" data-act="nav" data-tela="contaContador"><b>Minha conta</b><small>Trocar a senha e sair do sistema</small></button>' +
+    (R.empresa ? '<button class="item" data-act="nav" data-tela="velocidade"><b>Teste de velocidade</b><small>Mede quanto o servidor do Google demora em cada tela</small></button>' : ''));
+};
+
+// ---------- Teste de velocidade (contador) ----------
+R.telas.velocidade = function () {
+  R.pintar('<h1>Teste de velocidade</h1><p class="muted">Faz as mesmas consultas das telas principais, duas vezes cada, e mostra quanto tempo levou. ' +
+    'Nada é gravado. Leva cerca de 30 segundos.</p><div class="botoes"><button class="btn primario" data-act="rodarVelocidade">Começar</button></div><div id="velRes"></div>');
+};
+
+R.acoes.rodarVelocidade = function (el) {
+  el.disabled = true;
+  var E = R.empresa.id, mes = R.hoje().slice(0, 7);
+  var testes = [['Conexão (sem login)', 'ping', {}], ['Conferir login', 'eu', {}], ['Abrir a empresa', 'abrirEmpresa', { empresaId: E, mes: mes }],
+    ['Lançamentos do mês', 'listarLancamentos', { empresaId: E, mes: mes }], ['A pagar e a receber', 'listarAbertos', { empresaId: E }],
+    ['Fluxo de caixa', 'fluxoCaixa', { empresaId: E }]];
+  var linhas = [], i = 0, rodada = 1;
+  var mostrar = function (fim) {
+    R.el('velRes').innerHTML = '<div class="card"><table class="tabela"><thead><tr><th>Consulta</th><th>1ª vez</th><th>2ª vez</th></tr></thead><tbody>' +
+      testes.map(function (t, k) {
+        var a = linhas[k] || {}, b = linhas[k + testes.length] || {};
+        return '<tr><td>' + t[0] + (a.etapas ? '<br><small class="muted">' + a.etapas + '</small>' : '') + '</td><td>' + (a.ms ? (a.ms / 1000).toFixed(1) + ' s' : '…') + '</td><td>' + (b.ms ? (b.ms / 1000).toFixed(1) + ' s' : '…') + '</td></tr>';
+      }).join('') + '</tbody></table>' + (fim ? '<p class="muted">Me envie um print desta tela se quiser que eu analise.</p>' : '') + '</div>';
+  };
+  var proximo = function () {
+    if (i >= testes.length) { if (rodada === 2) { mostrar(true); el.disabled = false; return; } rodada = 2; i = 0; }
+    var t = testes[i], p = JSON.parse(JSON.stringify(t[2])), t0 = performance.now();
+    p._diag = true;
+    return R.chamar(t[1], p).then(function (r) {
+      var etapas = (r._etapas || []).map(function (e) { return e[0] + ' ' + (e[1] / 1000).toFixed(1) + 's'; }).join(' · ');
+      linhas.push({ ms: performance.now() - t0, etapas: etapas ? 'no servidor: ' + etapas : '' });
+    }, function (e) { linhas.push({ ms: performance.now() - t0, etapas: 'erro: ' + e.message }); }).then(function () { i++; mostrar(false); return proximo(); });
+  };
+  mostrar(false);
+  return proximo();
 };
 
 R.USOS_CONTA = [['', 'Nenhum'], ['compra', 'Categoria de compra (custo ou despesa)'], ['investimento', 'Categoria de compra (investimento)']];
@@ -1277,8 +1383,17 @@ R.mesLanc = '';
 
 R.STATUS_LANC = { lancado: ['Lançado', ''], aguardando_nota: ['Aguardando nota', 'alerta-selo'] };
 
+R.chaveMes = function (mes) { return 'lanc:' + R.empresa.id + ':' + mes; };
+R.guardarMes = function (mes, lancs) { var r = { lancamentos: lancs }; R.cacheDados[R.chaveMes(mes)] = { r: r, txt: JSON.stringify(r) }; };
+
+// Busca sempre do servidor (usado quando a tela precisa do dado mais novo, ex.: logo depois de salvar).
 R.carregarMes = function (mes) {
-  return R.exec('listarLancamentos', { empresaId: R.empresa.id, mes: mes }).then(function (r) { R.lancs = r.lancamentos; return r.lancamentos; });
+  return R.exec('listarLancamentos', { empresaId: R.empresa.id, mes: mes }).then(function (r) { R.lancs = r.lancamentos; R.guardarMes(mes, r.lancamentos); return r.lancamentos; });
+};
+
+// Mostra o que já foi carregado e atualiza por trás.
+R.lerMes = function (mes, desenhar) {
+  return R.lerComCache(R.chaveMes(mes), 'listarLancamentos', { empresaId: R.empresa.id, mes: mes }, function (r) { R.lancs = r.lancamentos; desenhar(r.lancamentos); });
 };
 
 R.resumoMes = function (lancs) {
@@ -1293,8 +1408,12 @@ R.resumoMes = function (lancs) {
 
 R.telas.lancamentos = function (d) {
   if (!R.mesLanc) R.mesLanc = R.hoje().slice(0, 7);
-  return R.carregarMes(R.mesLanc).then(function (lancs) {
-    if (d && d.abrir) { var l = R.porId(lancs, d.abrir); if (l) { R.ir('detalheLanc', l); return; } }
+  if (d && d.abrir) {
+    return R.carregarMes(R.mesLanc).then(function (lancs) { var l = R.porId(lancs, d.abrir); R.ir(l ? 'detalheLanc' : 'lancamentos', l); });
+  }
+  var mes = R.mesLanc;
+  return R.lerMes(mes, function (lancs) {
+    if (R.mesLanc !== mes) return; // a pessoa já mudou de mês
     var s = R.resumoMes(lancs);
     R.pintar('<div class="titulo-linha"><h1>Lançamentos</h1></div>' +
       '<div class="mes-nav"><button class="btn" data-act="mesLanc" data-d="-1" aria-label="Mês anterior">‹</button><b>' + R.nomeMes(R.mesLanc) + '</b>' +
@@ -1347,8 +1466,10 @@ R.telas.detalheLanc = function (l) {
     (l.desconto ? '<tr><td>− Desconto</td><td>' + R.fmtR(l.desconto) + '</td></tr>' : '') + '<tr class="forte"><td>Total</td><td>' + R.fmtR(l.total) + '</td></tr></table></div>';
   if (l.parcelas.length) {
     html += '<div class="card"><h2>Parcelas</h2><table class="tabela"><tbody>' + l.parcelas.map(function (p) {
-      return '<tr><td>' + p.numero + 'ª</td><td>' + R.fmtData(p.vencimento) + '</td><td>' + R.fmtR(p.valor) + '</td></tr>';
-    }).join('') + '</tbody></table></div>';
+      var st = { paga: '<span class="selo ok-selo">Paga</span>', parcial: '<span class="selo">Paga em parte</span>' }[p.status] || '<span class="selo off">Em aberto</span>';
+      return '<tr><td>' + p.numero + 'ª</td><td>' + R.fmtData(p.vencimento) + '</td><td>' + R.fmtR(p.valor) + '</td><td>' + st + '</td></tr>';
+    }).join('') + '</tbody></table>' + (l.status === 'lancado' ? '<div class="botoes"><button class="btn" data-act="irFinanceiro" data-aba="' + (l.tipo === 'compra' ? 'pagar' : 'receber') + '">' +
+      (l.tipo === 'compra' ? 'Registrar pagamento' : 'Registrar recebimento') + '</button></div>' : '') + '</div>';
   }
   if (l.partidas) {
     html += '<div class="card"><h2>Contabilização</h2>' + (l.partidas.length ? '<table class="tabela"><thead><tr><th>Conta</th><th>Débito</th><th>Crédito</th></tr></thead><tbody>' +
@@ -1428,7 +1549,7 @@ R.forms.emitente = function (d, form) {
 
 // ---------- Pendências ----------
 R.telas.notas = function () {
-  return R.exec('listarNotas', { empresaId: R.empresa.id }).then(function (r) {
+  return R.lerComCache('notas:' + R.empresa.id, 'listarNotas', { empresaId: R.empresa.id }, function (r) {
     var p = r.pendentes, grupos = [
       ['Sem espelho ainda', p.filter(function (x) { return !x.espelho; })],
       ['Espelho desatualizado (a venda mudou)', p.filter(function (x) { return x.espelho && x.espelho.situacao === 'rascunho'; })],
@@ -1648,11 +1769,307 @@ R.forms.nota = function (d) {
     .then(function () { R.toast('Nota fiscal registrada. A venda entrou no faturamento.'); return R.abrirEspelho(R.espAtual.espelho.id); });
 };
 
+/* Fase 3: contas a pagar e a receber, movimentos de caixa e fluxo de caixa. */
+R.abaFin = 'pagar';
+R.ABAS_FIN = [['pagar', 'A pagar'], ['receber', 'A receber'], ['caixa', 'Caixa e movimentos'], ['fluxo', 'Fluxo de caixa']];
+R.segFin = function (aba) {
+  return '<div class="seg" role="tablist">' + R.ABAS_FIN.map(function (a) {
+    return '<button role="tab" data-act="abaFin" data-aba="' + a[0] + '" aria-selected="' + (a[0] === aba) + '"' + (a[0] === aba ? ' class="ativo"' : '') + '>' + a[1] + '</button>';
+  }).join('') + '</div>';
+};
+R.acoes.abaFin = function (el) { R.abaFin = el.dataset.aba; R.ir('financeiro'); };
+R.acoes.irFinanceiro = function (el) { if (el && el.dataset.aba) R.abaFin = el.dataset.aba; R.ir('financeiro'); };
+R.contasAtivas = function () { return (R.cad.contas || []).filter(function (c) { return c.ativa; }); };
+R.opcoesContas = function (atual, exceto) {
+  return '<option value="">Selecione</option>' + R.contasAtivas().filter(function (c) { return c.id !== exceto; }).map(function (c) {
+    return '<option value="' + R.esc(c.id) + '"' + (c.id === atual ? ' selected' : '') + '>' + R.esc(c.nome) + '</option>';
+  }).join('');
+};
+R.diasEntre = function (a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5); };
+
+R.telas.financeiro = function () {
+  if (R.abaFin === 'caixa') return R.telaCaixa();
+  if (R.abaFin === 'fluxo') return R.telaFluxo();
+  var aba = R.abaFin;
+  return R.lerComCache('abertos:' + R.empresa.id, 'listarAbertos', { empresaId: R.empresa.id }, function (r) {
+    R.abertos = r.parcelas;
+    if (R.abaFin !== aba) return; // a pessoa já trocou de aba
+    var tipo = R.abaFin === 'pagar' ? 'compra' : 'venda', hoje = R.hoje();
+    var lista = r.parcelas.filter(function (p) { return p.tipo === tipo; });
+    var grupos = [
+      ['Vencidas', lista.filter(function (p) { return p.vencimento < hoje; }), 'vencida'],
+      ['Vencem nos próximos 7 dias', lista.filter(function (p) { return p.vencimento >= hoje && R.diasEntre(hoje, p.vencimento) <= 7; }), ''],
+      ['Mais adiante', lista.filter(function (p) { return R.diasEntre(hoje, p.vencimento) > 7; }), '']
+    ];
+    var total = lista.reduce(function (s, p) { return s + p.saldo; }, 0);
+    var html = '<h1>Financeiro</h1>' + R.segFin(R.abaFin) +
+      '<div class="cards"><div class="kpi"><span>Total ' + (tipo === 'compra' ? 'a pagar' : 'a receber') + '</span><b>' + R.fmtR(total) + '</b><small>' + lista.length + ' parcela(s)</small></div>' +
+      '<div class="kpi' + (grupos[0][1].length ? ' alerta' : '') + '"><span>Vencido</span><b>' + R.fmtR(grupos[0][1].reduce(function (s, p) { return s + p.saldo; }, 0)) + '</b><small>' + grupos[0][1].length + ' parcela(s)</small></div></div>';
+    if (!lista.length) html += '<div class="card"><p class="muted">Nada ' + (tipo === 'compra' ? 'a pagar' : 'a receber') + '. Compras e vendas a prazo aparecem aqui até serem quitadas.</p></div>';
+    grupos.forEach(function (g) {
+      if (!g[1].length) return;
+      html += '<h2 class="grupo">' + g[0] + ' <span class="cont">' + g[1].length + '</span></h2>' + g[1].map(function (p) { return R.cartaoParcela(p, g[2]); }).join('');
+    });
+    R.pintar(html);
+  });
+};
+
+R.cartaoParcela = function (p, classe) {
+  var nome = p.pessoaNome || (p.tipo === 'venda' ? 'Consumidor não identificado' : 'Sem fornecedor');
+  var itens = p.itemIds.map(function (id) { var it = R.porId(R.cad.itens, id); return it ? it.nome : ''; }).filter(String).join(', ');
+  return '<button class="item parcela-item ' + (classe || '') + '" data-act="abrirParcela" data-id="' + R.esc(p.id) + '"><div class="lanc-linha"><b>' + R.esc(nome) + '</b><b class="valor">' + R.fmtR(p.saldo) + '</b></div>' +
+    '<small>Parcela ' + p.numero + '/' + p.de + ' · vence ' + R.fmtData(p.vencimento) + ' · ' + R.esc(R.rotulo(R.FORMAS, p.formaPagamento)) + '</small>' +
+    (itens ? '<small>' + R.esc(itens) + '</small>' : '') +
+    (p.status === 'parcial' ? '<span class="selo">Pago em parte: ' + R.fmtR(p.pago) + ' de ' + R.fmtR(p.valor) + '</span>' : '') +
+    (p.statusLancamento === 'aguardando_nota' ? '<span class="selo alerta-selo">Aguardando nota fiscal</span>' : '') + '</button>';
+};
+
+R.acoes.abrirParcela = function (el) { R.ir('formBaixa', R.porId(R.abertos, el.dataset.id)); };
+
+// ---------- Baixa (pagamento ou recebimento) ----------
+R.telas.formBaixa = function (p) {
+  R.parcelaAtual = p;
+  var compra = p.tipo === 'compra', caixa = R.contasAtivas()[0];
+  var html = '<h1>' + (compra ? 'Registrar pagamento' : 'Registrar recebimento') + '</h1>' +
+    '<div class="card destaque"><div class="lanc-linha"><b>' + R.esc(p.pessoaNome || (compra ? 'Sem fornecedor' : 'Consumidor não identificado')) + '</b><b>' + R.fmtR(p.saldo) + '</b></div>' +
+    '<small class="muted">Parcela ' + p.numero + '/' + p.de + ' de ' + R.fmtR(p.valor) + ' · vence ' + R.fmtData(p.vencimento) + ' · ' + (compra ? 'compra' : 'venda') + ' de ' + R.fmtData(p.dataLancamento) + '</small>' +
+    (p.baixas.length ? '<h3 style="margin-top:12px">Já registrado</h3><table class="tabela"><tbody>' + p.baixas.map(function (b) {
+      var c = R.porId(R.cad.contas, b.contaFinanceiraId);
+      return '<tr><td>' + R.fmtData(b.data) + '<br><small class="muted">' + R.esc(c ? c.nome : '') + (b.juros ? ' · juros ' + R.fmtR(b.juros) : '') + (b.desconto ? ' · desc. ' + R.fmtR(b.desconto) : '') + '</small></td>' +
+        '<td>' + R.fmtR(b.valorPago) + '</td><td><button class="btn link" data-act="estornarBaixa" data-id="' + R.esc(b.id) + '">Estornar</button></td></tr>';
+    }).join('') + '</tbody></table>' : '') + '</div>';
+  if (p.statusLancamento === 'aguardando_nota') {
+    html += '<div class="alerta aviso">Esta venda ainda aguarda a nota fiscal. Registre a nota em <b>Notas e espelhos</b> antes de dar baixa no recebimento.</div>' +
+      '<div class="botoes"><button class="btn" data-act="irFinanceiro">Voltar</button><button class="btn primario" data-act="irNotas">Notas e espelhos</button></div>';
+    R.pintar(html);
+    return;
+  }
+  html += '<form class="card" data-form="baixa" id="formBaixa" novalidate><div class="msg" hidden></div>' +
+    '<label class="campo"><span>Data do ' + (compra ? 'pagamento' : 'recebimento') + '</span><input type="date" name="data" value="' + R.hoje() + '" min="' + R.esc(R.empresa.dataInicio) + '"></label>' +
+    '<label class="campo"><span>Valor da parcela que está sendo quitado</span><input name="principal" inputmode="decimal" value="' + R.centCampo(p.saldo) + '"><small>Para pagamento parcial, informe só a parte paga.</small></label>' +
+    '<div class="grade2">' + R.campo('juros', 'Juros ou multa', '', 'inputmode="decimal" placeholder="0,00"') + R.campo('desconto', 'Desconto', '', 'inputmode="decimal" placeholder="0,00"') + '</div>' +
+    '<div class="total-pago" id="totalPago"></div>' +
+    '<label class="campo"><span>' + (compra ? 'Saiu de qual conta?' : 'Entrou em qual conta?') + '</span><select name="contaFinanceiraId">' + R.opcoesContas(caixa ? caixa.id : '') + '</select></label>' +
+    R.campo('observacao', 'Observação (opcional)', '', 'maxlength="200"') +
+    '<div class="botoes"><button type="button" class="btn" data-act="irFinanceiro">Cancelar</button><button class="btn primario">' + (compra ? 'Registrar pagamento' : 'Registrar recebimento') + '</button></div></form>';
+  R.pintar(html);
+  R.atualizarTotalPago();
+};
+
+R.atualizarTotalPago = function () {
+  var f = R.el('formBaixa');
+  if (!f) return;
+  var pr = R.paraCentavos(f.principal.value), j = f.juros.value ? R.paraCentavos(f.juros.value) : 0, d = f.desconto.value ? R.paraCentavos(f.desconto.value) : 0;
+  var ok = isFinite(pr) && isFinite(j) && isFinite(d);
+  R.el('totalPago').innerHTML = ok ? 'Total ' + (R.parcelaAtual.tipo === 'compra' ? 'pago' : 'recebido') + ': <b>' + R.fmtR(pr + j - d) + '</b>' +
+    (pr < R.parcelaAtual.saldo ? ' <span class="muted">(pagamento parcial: restam ' + R.fmtR(R.parcelaAtual.saldo - pr) + ')</span>' : '') : '<span class="txt-aviso">Confira os valores digitados.</span>';
+};
+document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#formBaixa')) R.atualizarTotalPago(); });
+
+R.forms.baixa = function (d) {
+  var principal = R.paraCentavos(d.principal), juros = d.juros ? R.paraCentavos(d.juros) : 0, desconto = d.desconto ? R.paraCentavos(d.desconto) : 0;
+  if (![principal, juros, desconto].every(isFinite)) return Promise.reject(new Error('Confira os valores digitados.'));
+  return R.exec('registrarBaixa', { empresaId: R.empresa.id, parcelaId: R.parcelaAtual.id, data: d.data, principal: principal, juros: juros, desconto: desconto,
+    contaFinanceiraId: d.contaFinanceiraId, observacao: d.observacao }).then(function (r) {
+    R.toast(r.status === 'paga' ? 'Parcela quitada.' : 'Pagamento parcial registrado.');
+    R.ir('financeiro');
+  });
+};
+
+R.acoes.estornarBaixa = function (el) {
+  if (!confirm('Estornar este pagamento? Ele sai do caixa e a parcela volta a ficar em aberto.')) return;
+  return R.exec('estornarBaixa', { empresaId: R.empresa.id, baixaId: el.dataset.id }).then(function () {
+    R.toast('Pagamento estornado.');
+    R.ir('financeiro');
+  });
+};
+
+// ---------- Caixa e movimentos ----------
+R.mesMov = '';
+R.TIPOS_MOV = { aporte: 'Aporte do produtor', retirada: 'Retirada do produtor', transferencia: 'Transferência entre contas', fatura_cartao: 'Pagamento da fatura do cartão' };
+
+R.telaCaixa = function () {
+  if (!R.mesMov) R.mesMov = R.hoje().slice(0, 7);
+  var mes = R.mesMov;
+  return R.lerComCache('mov:' + R.empresa.id + ':' + mes, 'listarMovimentos', { empresaId: R.empresa.id, mes: mes }, function (r) {
+    if (R.abaFin !== 'caixa' || R.mesMov !== mes) return;
+    R.saldoCartao = r.saldoCartao;
+    R.movs = r.movimentos;
+    var html = '<h1>Financeiro</h1>' + R.segFin('caixa') +
+      '<p class="muted">Dinheiro que entra ou sai sem ser compra ou venda. Retiradas para a família ficam separadas das despesas da propriedade.</p>' +
+      '<div class="botoes"><button class="btn" data-act="novoMov" data-tipo="aporte">+ Aporte</button><button class="btn" data-act="novoMov" data-tipo="retirada">+ Retirada</button></div>' +
+      '<div class="botoes"><button class="btn" data-act="novoMov" data-tipo="transferencia">Transferir entre contas</button>' +
+      '<button class="btn" data-act="novoMov" data-tipo="fatura_cartao"' + (r.saldoCartao > 0 ? '' : ' disabled') + '>Pagar fatura do cartão</button></div>' +
+      (r.saldoCartao > 0 ? '<div class="alerta aviso">Compras no cartão de crédito a pagar: <b>' + R.fmtR(r.saldoCartao) + '</b></div>' : '') +
+      '<div class="mes-nav"><button class="btn" data-act="mesMov" data-d="-1" aria-label="Mês anterior">‹</button><b>' + R.nomeMes(R.mesMov) + '</b>' +
+      '<button class="btn" data-act="mesMov" data-d="1" aria-label="Próximo mês">›</button></div>';
+    html += r.movimentos.length ? r.movimentos.map(function (m) {
+      var c = R.porId(R.cad.contas, m.contaFinanceiraId), dst = R.porId(R.cad.contas, m.contaDestinoId);
+      var entra = m.tipo === 'aporte';
+      return '<div class="item mov"><div class="lanc-linha"><b>' + R.esc(R.TIPOS_MOV[m.tipo]) + '</b><b class="valor">' + (m.tipo === 'transferencia' ? '' : entra ? '+ ' : '− ') + R.fmtR(m.valor) + '</b></div>' +
+        '<small>' + R.fmtData(m.data) + ' · ' + R.esc(c ? c.nome : '') + (dst ? ' → ' + R.esc(dst.nome) : '') + (m.observacao ? ' · ' + R.esc(m.observacao) : '') + '</small>' +
+        '<button class="btn link" data-act="excluirMov" data-id="' + R.esc(m.id) + '">Excluir</button></div>';
+    }).join('') : '<div class="card"><p class="muted">Nenhum movimento neste mês.</p></div>';
+    R.pintar(html);
+  });
+};
+
+R.acoes.mesMov = function (el) {
+  var p = R.mesMov.split('-').map(Number), d = new Date(p[0], p[1] - 1 + Number(el.dataset.d), 1);
+  R.mesMov = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  R.ir('financeiro');
+};
+R.acoes.novoMov = function (el) { R.ir('formMovimento', { tipo: el.dataset.tipo }); };
+R.acoes.excluirMov = function (el) {
+  if (!confirm('Excluir este movimento?')) return;
+  return R.exec('excluirMovimento', { empresaId: R.empresa.id, id: el.dataset.id }).then(function () { R.toast('Movimento excluído.'); R.ir('financeiro'); });
+};
+
+R.telas.formMovimento = function (d) {
+  var t = d.tipo, caixa = R.contasAtivas()[0];
+  var ajuda = {
+    aporte: 'Dinheiro do produtor (ou da família) colocado na atividade.',
+    retirada: 'Dinheiro da atividade usado pela família ou pelo produtor. Não entra como despesa da propriedade.',
+    transferencia: 'Ex.: saque do banco para o caixa, ou depósito do caixa no banco.',
+    fatura_cartao: 'Valor pago da fatura. Compras no cartão ainda a pagar: ' + R.fmtR(R.saldoCartao || 0) + '.'
+  }[t];
+  R.pintar('<h1>' + R.esc(R.TIPOS_MOV[t]) + '</h1><form class="card" data-form="movimento" novalidate><div class="msg" hidden></div>' +
+    '<input type="hidden" name="tipo" value="' + R.esc(t) + '"><p class="muted" style="margin-top:0">' + R.esc(ajuda) + '</p>' +
+    '<div class="grade2"><label class="campo"><span>Data</span><input type="date" name="data" value="' + R.hoje() + '" min="' + R.esc(R.empresa.dataInicio) + '"></label>' +
+    R.campo('valor', 'Valor', t === 'fatura_cartao' ? R.centCampo(R.saldoCartao) : '', 'inputmode="decimal" placeholder="0,00"') + '</div>' +
+    '<label class="campo"><span>' + ({ aporte: 'Entrou em qual conta?', retirada: 'Saiu de qual conta?', transferencia: 'De qual conta?', fatura_cartao: 'Pago com qual conta?' }[t]) + '</span>' +
+    '<select name="contaFinanceiraId">' + R.opcoesContas(caixa ? caixa.id : '') + '</select></label>' +
+    (t === 'transferencia' ? '<label class="campo"><span>Para qual conta?</span><select name="contaDestinoId">' + R.opcoesContas('') + '</select></label>' : '') +
+    R.campo('observacao', 'Observação (opcional)', '', 'maxlength="200"') +
+    '<div class="botoes"><button type="button" class="btn" data-act="irFinanceiro" data-aba="caixa">Cancelar</button><button class="btn primario">Salvar</button></div></form>');
+};
+
+R.forms.movimento = function (d) {
+  var valor = R.paraCentavos(d.valor);
+  if (!(valor > 0)) return Promise.reject(new Error('Informe o valor.'));
+  d.valor = valor; d.empresaId = R.empresa.id;
+  return R.exec('salvarMovimento', d).then(function (r) {
+    R.toast('Movimento salvo.');
+    R.mesMov = r.movimento.data.slice(0, 7);
+    R.abaFin = 'caixa';
+    R.ir('financeiro');
+  });
+};
+
+// ---------- Fluxo de caixa ----------
+R.fluxoCfg = { mes: '', escala: 'semana', conta: 'todas', previsto: true };
+R.GRUPOS_FLUXO = [['operacional', 'Atividade (compras, vendas, despesas)'], ['investimento', 'Investimentos (máquinas, benfeitorias)'], ['produtor', 'Aportes e retiradas do produtor']];
+
+R.telaFluxo = function () {
+  if (!R.fluxoCfg.mes) R.fluxoCfg.mes = R.hoje().slice(0, 7);
+  return R.lerComCache('fluxo:' + R.empresa.id, 'fluxoCaixa', { empresaId: R.empresa.id }, function (r) { R.fluxoDados = r; if (R.abaFin === 'fluxo') R.renderFluxo(); });
+};
+
+R.calcularFluxo = function () {
+  var cfg = R.fluxoCfg, r = R.fluxoDados, ini = cfg.mes + '-01';
+  var p = cfg.mes.split('-').map(Number), fim = new Date(Date.UTC(p[0], p[1], 0)).toISOString().slice(0, 10);
+  var real = r.realizado.filter(function (x) { return cfg.conta === 'todas' ? x.grupo !== 'transferencia' : x.contaFinanceiraId === cfg.conta; });
+  var prev = cfg.previsto && cfg.conta === 'todas' ? r.previsto : [];
+  var hoje = R.hoje();
+  var saldoInicial = real.filter(function (x) { return x.data < ini; }).reduce(function (s, x) { return s + x.valor; }, 0);
+  var noPeriodo = function (x) { return x.data >= ini && x.data <= fim; };
+  // parcelas vencidas e não pagas entram como previstas para hoje (se hoje estiver no mês)
+  var prevAjustado = prev.map(function (x) { return x.data < hoje ? { data: hoje, valor: x.valor, historico: x.historico + ' (vencida)', grupo: x.grupo, aguardandoNota: x.aguardandoNota } : x; });
+  var rp = real.filter(noPeriodo), pp = prevAjustado.filter(noPeriodo);
+  var soma = function (l, sinal) { return l.filter(function (x) { return sinal > 0 ? x.valor > 0 : x.valor < 0; }).reduce(function (s, x) { return s + x.valor; }, 0); };
+  // faixas: dia ou semana
+  var faixas = [], d = ini;
+  while (d <= fim) {
+    var ate = cfg.escala === 'dia' ? d : (function () { var x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 6); var s = x.toISOString().slice(0, 10); return s > fim ? fim : s; })();
+    faixas.push({ de: d, ate: ate });
+    var prox = new Date(ate + 'T00:00:00Z'); prox.setUTCDate(prox.getUTCDate() + 1); d = prox.toISOString().slice(0, 10);
+  }
+  var acum = saldoInicial;
+  faixas.forEach(function (f) {
+    var dentro = function (x) { return x.data >= f.de && x.data <= f.ate; };
+    f.entradas = soma(rp.filter(dentro), 1); f.saidas = soma(rp.filter(dentro), -1);
+    f.prevEntradas = soma(pp.filter(dentro), 1); f.prevSaidas = soma(pp.filter(dentro), -1);
+    acum += f.entradas + f.saidas + f.prevEntradas + f.prevSaidas;
+    f.saldo = acum;
+  });
+  var grupos = R.GRUPOS_FLUXO.map(function (g) {
+    var l = rp.filter(function (x) { return x.grupo === g[0]; });
+    return { nome: g[1], entradas: soma(l, 1), saidas: soma(l, -1) };
+  });
+  // alerta: saldo projetado negativo nos próximos 90 dias (todas as contas)
+  var alerta = null;
+  if (cfg.conta === 'todas') {
+    var limite = new Date(hoje + 'T00:00:00Z'); limite.setUTCDate(limite.getUTCDate() + 90); limite = limite.toISOString().slice(0, 10);
+    var saldoHoje = r.realizado.filter(function (x) { return x.grupo !== 'transferencia' && x.data <= hoje; }).reduce(function (s, x) { return s + x.valor; }, 0);
+    var futuros = r.realizado.filter(function (x) { return x.grupo !== 'transferencia' && x.data > hoje; })
+      .concat(r.previsto.map(function (x) { return { data: x.data < hoje ? hoje : x.data, valor: x.valor }; }))
+      .filter(function (x) { return x.data <= limite; }).sort(function (a, b) { return a.data < b.data ? -1 : 1; });
+    var s = saldoHoje;
+    if (s < 0) alerta = { data: hoje, saldo: s };
+    for (var i = 0; i < futuros.length && !alerta; i++) { s += futuros[i].valor; if (s < 0) alerta = { data: futuros[i].data, saldo: s }; }
+  }
+  return { ini: ini, fim: fim, saldoInicial: saldoInicial, entradas: soma(rp, 1), saidas: soma(rp, -1), prevEntradas: soma(pp, 1), prevSaidas: soma(pp, -1),
+    faixas: faixas, grupos: grupos, alerta: alerta, movimentos: rp.map(function (x) { x.prev = false; return x; }).concat(pp.map(function (x) { return { data: x.data, valor: x.valor, historico: x.historico, prev: true, aguardandoNota: x.aguardandoNota }; }))
+      .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }) };
+};
+
+R.renderFluxo = function () {
+  var c = R.calcularFluxo(), cfg = R.fluxoCfg, r = R.fluxoDados;
+  var saldoFinal = c.saldoInicial + c.entradas + c.saidas, projetado = saldoFinal + c.prevEntradas + c.prevSaidas;
+  var html = '<h1>Financeiro</h1>' + R.segFin('fluxo') +
+    '<div class="mes-nav"><button class="btn" data-act="mesFluxo" data-d="-1" aria-label="Mês anterior">‹</button><b>' + R.nomeMes(cfg.mes) + '</b>' +
+    '<button class="btn" data-act="mesFluxo" data-d="1" aria-label="Próximo mês">›</button></div>' +
+    '<div class="grade2"><label class="campo"><span>Conta</span><select id="fluxoConta"><option value="todas">Todas as contas</option>' +
+    R.contasAtivas().map(function (x) { return '<option value="' + R.esc(x.id) + '"' + (x.id === cfg.conta ? ' selected' : '') + '>' + R.esc(x.nome) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="campo"><span>Mostrar por</span><select id="fluxoEscala"><option value="semana"' + (cfg.escala === 'semana' ? ' selected' : '') + '>Semana</option><option value="dia"' + (cfg.escala === 'dia' ? ' selected' : '') + '>Dia</option></select></label></div>' +
+    (cfg.conta === 'todas' ? '<label class="check"><input type="checkbox" id="fluxoPrev"' + (cfg.previsto ? ' checked' : '') + '><span>Incluir o previsto (parcelas a pagar e a receber)</span></label>' : '<p class="muted">O previsto aparece só na visão de todas as contas.</p>');
+  if (c.alerta) html += '<div class="alerta erro"><b>Atenção:</b> o saldo previsto fica negativo em ' + R.fmtData(c.alerta.data) + ' (' + R.fmtR(c.alerta.saldo) + '), considerando o que está a pagar e a receber nos próximos 90 dias.</div>';
+  html += '<div class="cards"><div class="kpi"><span>Saldo no início do mês</span><b>' + R.fmtR(c.saldoInicial) + '</b></div>' +
+    '<div class="kpi"><span>Entradas realizadas</span><b>' + R.fmtR(c.entradas) + '</b></div>' +
+    '<div class="kpi"><span>Saídas realizadas</span><b>' + R.fmtR(Math.abs(c.saidas)) + '</b></div>' +
+    '<div class="kpi' + (saldoFinal < 0 ? ' neg' : '') + '"><span>Saldo realizado</span><b>' + R.fmtR(saldoFinal) + '</b></div></div>';
+  if (cfg.previsto && cfg.conta === 'todas') {
+    html += '<div class="cards"><div class="kpi"><span>A receber no mês</span><b>' + R.fmtR(c.prevEntradas) + '</b></div><div class="kpi"><span>A pagar no mês</span><b>' + R.fmtR(Math.abs(c.prevSaidas)) + '</b></div>' +
+      '<div class="kpi' + (projetado < 0 ? ' neg' : '') + '"><span>Saldo previsto no fim do mês</span><b>' + R.fmtR(projetado) + '</b></div>' +
+      (r.saldoCartao > 0 ? '<div class="kpi"><span>Cartão a pagar (sem data)</span><b>' + R.fmtR(r.saldoCartao) + '</b></div>' : '') + '</div>';
+  }
+  html += '<div class="card"><h2>' + (cfg.escala === 'dia' ? 'Por dia' : 'Por semana') + '</h2><div class="rolagem"><table class="tabela fluxo"><thead><tr><th>Período</th><th>Entradas</th><th>Saídas</th><th>Saldo</th></tr></thead><tbody>' +
+    c.faixas.filter(function (f) { return cfg.escala === 'semana' || f.entradas || f.saidas || f.prevEntradas || f.prevSaidas; }).map(function (f) {
+      var prev = f.prevEntradas || f.prevSaidas;
+      return '<tr><td>' + R.fmtData(f.de).slice(0, 5) + (f.ate !== f.de ? ' a ' + R.fmtData(f.ate).slice(0, 5) : '') + '</td>' +
+        '<td>' + R.fmtR(f.entradas) + (f.prevEntradas ? '<br><small class="prev">+' + R.fmtR(f.prevEntradas) + ' prev.</small>' : '') + '</td>' +
+        '<td>' + R.fmtR(Math.abs(f.saidas)) + (f.prevSaidas ? '<br><small class="prev">' + R.fmtR(Math.abs(f.prevSaidas)) + ' prev.</small>' : '') + '</td>' +
+        '<td class="' + (f.saldo < 0 ? 'neg' : '') + '">' + R.fmtR(f.saldo) + (prev ? '<br><small class="prev">com previsto</small>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div></div>';
+  html += '<div class="card"><h2>Por tipo (realizado)</h2><table class="tabela"><thead><tr><th></th><th>Entradas</th><th>Saídas</th></tr></thead><tbody>' +
+    c.grupos.map(function (g) { return '<tr><td>' + g.nome + '</td><td>' + R.fmtR(g.entradas) + '</td><td>' + R.fmtR(Math.abs(g.saidas)) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  html += '<div class="card"><h2>Movimentação do mês</h2>' + (c.movimentos.length ? '<table class="tabela mov-fluxo"><tbody>' + c.movimentos.map(function (x) {
+    return '<tr class="' + (x.prev ? 'linha-prev' : '') + '"><td>' + R.fmtData(x.data).slice(0, 5) + '</td><td>' + R.esc(x.historico) + (x.prev ? ' <small class="prev">previsto' + (x.aguardandoNota ? ', aguardando nota' : '') + '</small>' : '') + '</td>' +
+      '<td class="' + (x.valor < 0 ? 'neg' : 'pos') + '">' + (x.valor < 0 ? '− ' : '+ ') + R.fmtR(Math.abs(x.valor)) + '</td></tr>';
+  }).join('') + '</tbody></table>' : '<p class="muted">Nada neste mês.</p>') + '</div>' +
+    '<p class="muted">O fluxo de caixa usa a <b>data do pagamento</b>. A DRE usa a <b>data da compra ou venda</b>. Por isso os valores do mês podem ser diferentes. ' +
+    'O saldo começa em zero na data de início da empresa (' + R.fmtData(R.empresa.dataInicio) + '): registre um aporte com o dinheiro que já existia, se quiser.</p>';
+  R.pintar(html);
+};
+
+R.acoes.mesFluxo = function (el) {
+  var p = R.fluxoCfg.mes.split('-').map(Number), d = new Date(p[0], p[1] - 1 + Number(el.dataset.d), 1);
+  R.fluxoCfg.mes = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  R.renderFluxo();
+};
+document.addEventListener('change', function (ev) {
+  var id = ev.target.id;
+  if (id === 'fluxoConta') { R.fluxoCfg.conta = ev.target.value; R.renderFluxo(); }
+  if (id === 'fluxoEscala') { R.fluxoCfg.escala = ev.target.value; R.renderFluxo(); }
+  if (id === 'fluxoPrev') { R.fluxoCfg.previsto = ev.target.checked; R.renderFluxo(); }
+});
+
 /* Moldura do app (topo e navegação) e inicialização. */
 var ICONES_R = {
   inicio: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
   lancamentos: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
   cadastros: '<path d="M4 7l8-4 8 4-8 4z"/><path d="M4 12l8 4 8-4M4 17l8 4 8-4"/>',
+  financeiro: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
   escritorio: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/>',
   conta: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>'
 };
@@ -1660,10 +2077,11 @@ var ICONES_R = {
 // Tela -> item da barra de navegação que fica destacado
 var TELAS_COM_NAV_R = {
   inicio: 'inicio', lancamentos: 'lancamentos', detalheLanc: 'lancamentos', lancar: 'lancamentos',
+  financeiro: 'financeiro', formBaixa: 'financeiro', formMovimento: 'financeiro',
   notas: 'lancamentos', espelho: 'lancamentos', formAprovacao: 'lancamentos', formRecusa: 'lancamentos', formNota: 'lancamentos', formEmitente: 'cadastros',
   cadastros: 'cadastros', formItem: 'cadastros', formCliente: 'cadastros', formFornecedor: 'cadastros', formContaFin: 'cadastros',
   escritorio: 'escritorio', plano: 'escritorio', formConta: 'escritorio', empresas: 'escritorio', formEmpresa: 'escritorio',
-  usuarios: 'escritorio', formUsuario: 'escritorio', senhaGerada: 'escritorio', conta: 'conta', escolher: '', semEmpresa: ''
+  usuarios: 'escritorio', formUsuario: 'escritorio', senhaGerada: 'escritorio', conta: 'conta', contaContador: 'escritorio', velocidade: 'escritorio', escolher: '', semEmpresa: ''
 };
 
 R.atualizarMoldura = function () {
@@ -1677,9 +2095,10 @@ R.atualizarMoldura = function () {
   R.el('marca').textContent = logado && R.empresa ? R.empresa.nome : 'Sistema Rural';
   if (!logado) return;
   var itens = [];
-  if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['cadastros', 'Cadastros']);
+  if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['financeiro', 'Financeiro'], ['cadastros', 'Cadastros']);
+  // contador: "Minha conta" fica dentro do Escritório, para a barra caber no celular
   if (R.usuario.perfil === 'contador') itens.push(['escritorio', 'Escritório']);
-  itens.push(['conta', 'Conta']);
+  if (R.usuario.perfil !== 'contador' || !R.empresa) itens.push(['conta', 'Conta']);
   nav.innerHTML = itens.map(function (i) {
     return '<button data-act="nav" data-tela="' + i[0] + '"' + (secao === i[0] ? ' class="ativo" aria-current="page"' : '') + '>' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONES_R[i[0]] + '</svg>' + i[1] + '</button>';
