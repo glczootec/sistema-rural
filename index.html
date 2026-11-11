@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "40f6436ec129";</script>
+<script>window.R_VERSAO = "9ec03305660f";</script>
 
 <style>
 :root {
@@ -244,6 +244,21 @@ table.balancete .cod { color: var(--muted); font-family: Consolas, Menlo, monosp
   table.dre, table.tabela { font-size: 9.5pt; }
 }
 
+/* ---------- Fase 5: estoque ---------- */
+.lista-contagem { padding: 4px 14px; }
+.linha-contagem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--borda); }
+.linha-contagem:last-child { border-bottom: 0; }
+.linha-contagem span { min-width: 0; }
+.linha-contagem b { display: block; overflow-wrap: anywhere; }
+.linha-contagem small { display: block; color: var(--muted); font-size: .8rem; }
+.linha-contagem input { flex: none; width: 96px; text-align: right; font: inherit; padding: 10px; border: 1px solid var(--borda); border-radius: 10px; background: var(--card); color: inherit; }
+.linha-contagem input:focus { outline: 2px solid var(--pri); border-color: var(--pri); }
+table.estoque td:first-child { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  table.estoque { font-size: .76rem; }
+  table.estoque th, table.estoque td { padding: 5px 2px; }
+}
+
 </style>
 </head>
 <body>
@@ -411,7 +426,7 @@ R.chamar = function (acao, payload, prazoMs) {
 
 // Ações que só leem dados: as demais (gravações) apagam o que estava guardado nas telas.
 R.LEITURAS = ['ping', 'eu', 'abrirEmpresa', 'dadosEmpresa', 'listarLancamentos', 'listarAbertos', 'listarMovimentos', 'fluxoCaixa',
-  'listarNotas', 'abrirEspelho', 'listarEmpresas', 'listarUsuarios', 'dadosRelatorios'];
+  'listarNotas', 'abrirEspelho', 'listarEmpresas', 'listarUsuarios', 'dadosRelatorios', 'listarEstoque'];
 R.cacheDados = {};
 
 R.tratarErroSessao = function (e) {
@@ -661,6 +676,7 @@ R.telas.inicio = function () {
     '<button class="btn primario grande" data-act="novaVenda">+ Lançar venda</button></div>' +
     '<button class="item" data-act="irNotas"><b>Notas e espelhos</b><small>Espelhos para o cliente aprovar e registro das notas fiscais</small></button>' +
     '<button class="item" data-act="irFinanceiro" data-aba="pagar"><b>Contas a pagar e a receber</b><small>Registrar pagamentos e ver o que vence</small></button>' +
+    '<button class="item" data-act="nav" data-tela="estoque"><b>Estoque</b><small>Registrar a contagem e ver o consumo e a produção</small></button>' +
     '<div id="inicioMes"><div class="card"><p class="muted">Carregando o mês...</p></div></div>');
   return R.lerMes(mes, function (lancs) {
     if (R.tela !== 'inicio') return;
@@ -979,7 +995,8 @@ R.telas.mais = function () {
   var html = '<h1>Mais</h1>';
   if (e) {
     html += item('cadastros', 'Cadastros', 'Itens, clientes, fornecedores, caixa e bancos, emitente') +
-      item('notas', 'Notas e espelhos', 'Espelhos para aprovação e registro das notas fiscais');
+      item('notas', 'Notas e espelhos', 'Espelhos para aprovação e registro das notas fiscais') +
+      item('estoque', 'Estoque', 'Contagens, consumo de insumos e produção');
   }
   if (contador) {
     html += '<h2 class="grupo">Escritório</h2>' +
@@ -2310,6 +2327,40 @@ Rel.produtos = function (dados, plano, itens, de, ate, cfg) {
   return { principal: principal, comparacao: comparacao, indiretos: ind, avisoUnidades: avisoUnidades, unidades: Object.keys(unidades) };
 };
 
+// Estoque entre a contagem escolhida e a anterior.
+// contagens: [{id, data, itens:[{itemId, quantidade}]}]; movimentos: [data, itemId, 'c'|'v', quantidade, valorUnitario]
+// insumos  -> consumo = anterior + compras - vendas - atual
+// produtos -> produção estimada = atual - anterior + vendas - compras
+Rel.estoque = function (contagens, movimentos, itens, contagemId) {
+  var ord = contagens.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; });
+  var pos = -1;
+  ord.forEach(function (c, i) { if (c.id === contagemId) pos = i; });
+  if (pos < 0) return null;
+  var atual = ord[pos], ant = pos > 0 ? ord[pos - 1] : null;
+  var qtds = function (c) { var m = {}; (c ? c.itens : []).forEach(function (x) { m[x.itemId] = x.quantidade; }); return m; };
+  var fim = qtds(atual), ini = qtds(ant), cad = {};
+  itens.forEach(function (i) { cad[i.id] = i; });
+  var r3 = function (n) { return Math.round(n * 1000) / 1000; };
+  var ids = Object.keys(fim).concat(Object.keys(ini).filter(function (k) { return !(k in fim); })).filter(function (k) { return cad[k]; });
+  var linhas = ids.map(function (id) {
+    var it = cad[id], compras = 0, vendas = 0, preco = 0, precoVenda = 0, dC = '', dV = '';
+    movimentos.forEach(function (m) {
+      if (m[1] !== id || m[0] > atual.data) return;
+      // último preço até a data da contagem (na mesma data, vale o lançado por último)
+      if (m[2] === 'c') { if (m[0] >= dC) { dC = m[0]; preco = m[4]; } } else if (m[0] >= dV) { dV = m[0]; precoVenda = m[4]; }
+      if (ant && m[0] > ant.data) { if (m[2] === 'c') compras += m[3]; else vendas += m[3]; }
+    });
+    var a = id in ini ? ini[id] : null, f = id in fim ? fim[id] : null, resultado = null;
+    if (ant && a !== null && f !== null) resultado = it.tipo === 'produto' ? f - a + vendas - compras : a + compras - vendas - f;
+    var unit = it.tipo === 'produto' ? (it.precoSugerido ? it.precoSugerido / 100 : precoVenda) : preco;
+    return {
+      itemId: id, nome: it.nome, tipo: it.tipo, unidade: it.unidade, anterior: a, compras: r3(compras), vendas: r3(vendas), atual: f,
+      resultado: resultado === null ? null : r3(resultado), precoUnitario: unit, valor: f === null || !unit ? null : Math.round(f * unit * 100)
+    };
+  }).sort(function (x, y) { return x.tipo === y.tipo ? x.nome.localeCompare(y.nome, 'pt-BR') : (x.tipo === 'produto' ? -1 : 1); });
+  return { atual: atual, anterior: ant, linhas: linhas, valorTotal: linhas.reduce(function (s, l) { return s + (l.valor || 0); }, 0) };
+};
+
 if (typeof window !== 'undefined') window.Rel = Rel;
 
 /* Fase 4: DRE, faturamento e margem por produto (com rateio), balancete, critérios e fechamento. */
@@ -2588,6 +2639,157 @@ R.acoes.reabrirTudo = function () {
   return R.exec('fecharPeriodo', { empresaId: R.empresa.id, ate: '' }).then(function (r) { R.cad.fechadoAte = r.fechadoAte; R.toast('Períodos reabertos.'); R.ir('fechamento'); });
 };
 
+/* Estoque por contagem: o saldo oficial é o que foi contado.
+   Entre duas contagens o sistema estima o consumo dos insumos e a produção (colheita) dos produtos. */
+
+R.dadosEstoque = function (desenhar) {
+  return R.lerComCache('estoque:' + R.empresa.id, 'listarEstoque', { empresaId: R.empresa.id }, function (r) { R.estoqueDados = r; desenhar(r); });
+};
+
+R.calcEstoque = function (id) { var r = R.estoqueDados; return Rel.estoque(r.contagens, r.movimentos, R.cad.itens, id); };
+
+R.telas.estoque = function () {
+  R.pintar('<div class="titulo-linha"><h1>Estoque</h1><button class="btn primario" data-act="novaContagem">Nova contagem</button></div><div id="estoqueCorpo"><div class="card"><p class="muted">Carregando...</p></div></div>');
+  return R.dadosEstoque(function (r) {
+    var html = '';
+    if (!r.contagens.length) {
+      html = '<div class="card"><p><b>Como funciona</b></p><p class="muted">Conte o que tem na propriedade (insumos guardados e produtos colhidos que ainda não foram vendidos) e registre aqui. ' +
+        'Faça a primeira contagem agora e as próximas, de preferência, no último dia de cada mês.</p><p class="muted">Com duas contagens, o sistema calcula:</p>' +
+        '<ul class="muted"><li><b>Insumos:</b> quanto foi consumido = contagem anterior + compras − contagem atual.</li>' +
+        '<li><b>Produtos:</b> quanto foi produzido (colhido) = contagem atual − contagem anterior + vendas.</li></ul>' +
+        '<p class="muted">A contagem não altera a contabilidade: serve para acompanhar o consumo e a produção.</p></div>';
+    } else {
+      var ult = R.calcEstoque(r.contagens[0].id);
+      html = '<div class="cards"><div class="kpi"><span>Última contagem</span><b>' + R.fmtData(ult.atual.data) + '</b><small>' + ult.atual.itens.length + ' itens contados</small></div>' +
+        '<div class="kpi"><span>Valor estimado</span><b>' + R.fmtR(ult.valorTotal) + '</b><small>pelo último preço</small></div></div>' +
+        '<h2>Contagens</h2>' + r.contagens.map(function (c, i) {
+          var ant = r.contagens[i + 1];
+          return '<button class="item" data-act="verContagem" data-id="' + R.esc(c.id) + '"><b>' + R.fmtData(c.data) + (c.observacao ? ' · ' + R.esc(c.observacao) : '') + '</b>' +
+            '<small>' + c.itens.length + ' itens · ' + (ant ? 'comparada com ' + R.fmtData(ant.data) : 'primeira contagem') + '</small></button>';
+        }).join('');
+    }
+    R.el('estoqueCorpo').innerHTML = html;
+  });
+};
+
+R.acoes.novaContagem = function () { R.ir('formContagem', {}); };
+R.acoes.verContagem = function (el) { R.ir('detalheContagem', { id: el.dataset.id }); };
+R.acoes.voltarEstoque = function () { R.ir('estoque'); };
+
+// ---------- Formulário ----------
+R.telas.formContagem = function (d) {
+  var r = R.estoqueDados || { contagens: [], movimentos: [] };
+  var c = d.id ? r.contagens.filter(function (x) { return x.id === d.id; })[0] : null;
+  if (d.id && !c) { R.ir('estoque'); return; }
+  var atual = {};
+  (c ? c.itens : []).forEach(function (x) { atual[x.itemId] = x.quantidade; });
+  // última quantidade contada de cada item (fora a própria contagem em edição), para servir de referência
+  var ultima = {};
+  r.contagens.slice().reverse().forEach(function (k) {
+    if (c && k.id === c.id) return;
+    k.itens.forEach(function (x) { ultima[x.itemId] = { q: x.quantidade, data: k.data }; });
+  });
+  var itens = R.cad.itens.filter(function (i) { return i.tipo !== 'servico' && (i.ativo || i.id in atual); })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  var grupo = function (tipo, titulo, ajuda) {
+    var g = itens.filter(function (i) { return i.tipo === tipo; });
+    if (!g.length) return '';
+    return '<h2>' + titulo + '</h2><p class="muted" style="margin-top:0">' + ajuda + '</p><div class="card lista-contagem">' + g.map(function (i) {
+      var u = ultima[i.id];
+      return '<label class="linha-contagem"><span><b>' + R.esc(i.nome) + '</b><small>' + R.esc(R.rotulo(R.UNIDADES, i.unidade)) +
+        (u ? ' · última: ' + R.fmtNum(u.q) + ' em ' + R.fmtData(u.data) : '') + '</small></span>' +
+        '<input name="q_' + R.esc(i.id) + '" inputmode="decimal" autocomplete="off" placeholder="—" value="' + R.esc(i.id in atual ? R.numCampo(atual[i.id]) : '') + '" aria-label="Quantidade de ' + R.esc(i.nome) + ' em ' + R.esc(i.unidade) + '"></label>';
+    }).join('') + '</div>';
+  };
+  var html = '<h1>' + (c ? 'Corrigir contagem' : 'Nova contagem') + '</h1>';
+  if (!itens.length) {
+    R.pintar(html + '<div class="card"><p>Cadastre primeiro os seus produtos e insumos em <b>Mais › Cadastros › Itens</b>.</p><div class="botoes"><button class="btn" data-act="voltarEstoque">Voltar</button></div></div>');
+    return;
+  }
+  R.pintar(html + '<form data-form="contagem" novalidate><input type="hidden" name="id" value="' + R.esc(c ? c.id : '') + '"><div class="card"><div class="msg" hidden></div>' +
+    '<div class="grade2"><label class="campo"><span>Data da contagem</span><input type="date" name="data" value="' + R.esc(c ? c.data : R.hoje()) + '" min="' + R.esc(R.empresa.dataInicio) + '" max="' + R.hoje() + '"></label>' +
+    R.campo('observacao', 'Observação (opcional)', c ? c.observacao : '', 'maxlength="200" placeholder="Ex.: contagem de fim de mês"') + '</div>' +
+    '<p class="muted" style="margin:0">Digite a quantidade que existe hoje na propriedade. Deixe em branco o que não foi contado; se acabou, digite 0.</p></div>' +
+    grupo('produto', 'Produtos', 'Colhido e ainda não vendido.') +
+    grupo('insumo', 'Insumos', 'Guardado para usar na produção.') +
+    '<div class="botoes"><button type="button" class="btn" data-act="' + (c ? 'verContagem" data-id="' + R.esc(c.id) : 'voltarEstoque') + '">Cancelar</button><button class="btn primario">Salvar contagem</button></div></form>');
+};
+
+R.forms.contagem = function (d, form) {
+  var itens = [], erro = '';
+  Object.keys(d).forEach(function (k) {
+    if (k.indexOf('q_') !== 0 || !String(d[k]).trim()) return;
+    var id = k.slice(2), q = R.parseNum(d[k]), it = R.porId(R.cad.itens, id);
+    if (!(q >= 0)) { erro = erro || 'Quantidade inválida para "' + (it ? it.nome : '?') + '". Use apenas números, por exemplo 12 ou 2,5.'; return; }
+    itens.push({ itemId: id, quantidade: q });
+  });
+  if (erro) return Promise.reject(new Error(erro));
+  if (!itens.length) return Promise.reject(new Error('Informe a quantidade contada de pelo menos um item.'));
+  return R.exec('salvarContagem', { empresaId: R.empresa.id, id: d.id, data: d.data, observacao: d.observacao, itens: itens }).then(function (r) {
+    R.toast('Contagem salva.');
+    return R.exec('listarEstoque', { empresaId: R.empresa.id }).then(function (e) {
+      R.estoqueDados = e;
+      R.cacheDados['estoque:' + R.empresa.id] = { r: e, txt: JSON.stringify(e) };
+      R.ir('detalheContagem', { id: r.contagem.id });
+    });
+  });
+};
+
+// ---------- Detalhe: consumo e produção ----------
+R.telas.detalheContagem = function (d) {
+  if (!R.estoqueDados) { R.pintar('<div class="card"><p class="muted">Carregando...</p></div>'); return R.dadosEstoque(function () { if (R.tela === 'detalheContagem') R.telas.detalheContagem(d); }); }
+  var e = R.calcEstoque(d.id);
+  if (!e) { R.ir('estoque'); return; }
+  R.contagemAberta = d.id;
+  var q = function (n) { return n === null ? '—' : R.fmtNum(n); };
+  var tabela = function (tipo) {
+    var ls = e.linhas.filter(function (l) { return l.tipo === tipo; }), prod = tipo === 'produto';
+    if (!ls.length) return '';
+    return '<h2>' + (prod ? 'Produtos' : 'Insumos') + '</h2><div class="card rolagem"><table class="tabela estoque"><thead><tr><th>' + (prod ? 'Produto' : 'Insumo') + '</th>' +
+      (e.anterior ? '<th>Antes</th><th>' + (prod ? 'Vendido' : 'Comprado') + '</th>' : '') + '<th>Contado</th>' + (e.anterior ? '<th>' + (prod ? 'Produção' : 'Consumo') + '</th>' : '') + '<th>Valor</th></tr></thead><tbody>' +
+      ls.map(function (l) {
+        var mov = prod ? l.vendas : l.compras, outro = prod ? l.compras : l.vendas;
+        var neg = l.resultado !== null && l.resultado < 0;
+        return '<tr><td>' + R.esc(l.nome) + ' <small class="muted">' + R.esc(l.unidade) + '</small>' + (outro ? '<br><small class="muted">' + (prod ? 'comprado ' : 'vendido ') + R.fmtNum(outro) + '</small>' : '') + '</td>' +
+          (e.anterior ? '<td>' + q(l.anterior) + '</td><td>' + R.fmtNum(mov) + '</td>' : '') + '<td>' + q(l.atual) + '</td>' +
+          (e.anterior ? '<td class="' + (neg ? 'neg' : '') + '"><b>' + q(l.resultado) + '</b>' + (neg ? ' ⚠' : '') + '</td>' : '') +
+          '<td>' + (l.valor === null ? '—' : R.fmtR(l.valor)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  };
+  var negativos = e.linhas.some(function (l) { return l.resultado !== null && l.resultado < 0; });
+  var naoContados = e.linhas.filter(function (l) { return l.atual === null || (e.anterior && l.anterior === null); });
+  var html = '<div class="titulo-linha"><h1>Contagem de ' + R.fmtData(e.atual.data) + '</h1></div>' +
+    '<p class="muted">' + (e.anterior ? 'Comparada com a contagem de ' + R.fmtData(e.anterior.data) + '. Entram as compras e vendas lançadas depois de ' + R.fmtData(e.anterior.data) + ' até ' + R.fmtData(e.atual.data) + '.' :
+      'Primeira contagem: ela é o ponto de partida. O consumo e a produção aparecem a partir da próxima contagem.') + (e.atual.observacao ? '<br>Observação: ' + R.esc(e.atual.observacao) : '') + '</p>' +
+    '<div class="botoes nao-imprimir"><button class="btn" data-act="editarContagem">Corrigir</button><button class="btn" data-act="csvContagem">Baixar planilha</button>' +
+    '<button class="btn" data-act="imprimirContagem">Imprimir</button><button class="btn perigo" data-act="excluirContagem">Excluir</button></div>' +
+    tabela('produto') + tabela('insumo') +
+    '<div class="cards"><div class="kpi"><span>Valor estimado do estoque</span><b>' + R.fmtR(e.valorTotal) + '</b><small>Insumos pelo último preço de compra; produtos pelo preço sugerido do cadastro ou, sem ele, pelo último preço de venda.</small></div></div>' +
+    (negativos ? '<div class="alerta erro"><b>Confira os itens com ⚠:</b> o resultado ficou negativo. Normalmente falta lançar uma compra (insumo) ou uma venda (produto), ou a contagem foi digitada errada.</div>' : '') +
+    (naoContados.length ? '<p class="muted">Sem resultado (—) para ' + naoContados.map(function (l) { return R.esc(l.nome); }).join(', ') + ': o item não foi contado nas duas datas.</p>' : '') +
+    '<div class="botoes nao-imprimir"><button class="btn" data-act="voltarEstoque">Voltar para o estoque</button></div>';
+  R.pintar(html);
+};
+
+R.acoes.editarContagem = function () { R.ir('formContagem', { id: R.contagemAberta }); };
+R.acoes.imprimirContagem = function () { window.print(); };
+R.acoes.excluirContagem = function () {
+  var c = R.calcEstoque(R.contagemAberta);
+  if (!confirm('Excluir a contagem de ' + R.fmtData(c.atual.data) + '? As quantidades digitadas serão apagadas.')) return;
+  return R.exec('excluirContagem', { empresaId: R.empresa.id, id: R.contagemAberta }).then(function () { R.estoqueDados = null; R.toast('Contagem excluída.'); R.ir('estoque'); });
+};
+R.acoes.csvContagem = function () {
+  var e = R.calcEstoque(R.contagemAberta), n = function (x) { return x === null ? '' : String(x).replace('.', ','); };
+  var L = [[R.empresa.nome], ['Contagem de estoque de ' + R.fmtData(e.atual.data) + (e.anterior ? ' comparada com ' + R.fmtData(e.anterior.data) : '')], [],
+    ['Item', 'Tipo', 'Unidade', 'Contagem anterior', 'Compras', 'Vendas', 'Contagem atual', 'Produção / consumo', 'Preço unitário', 'Valor estimado']];
+  e.linhas.forEach(function (l) {
+    L.push([l.nome, l.tipo === 'produto' ? 'Produto' : 'Insumo', l.unidade, n(l.anterior), n(l.compras), n(l.vendas), n(l.atual), n(l.resultado),
+      l.precoUnitario ? n(Math.round(l.precoUnitario * 100) / 100) : '', l.valor === null ? '' : R.csvNum(l.valor)]);
+  });
+  L.push([], ['Valor estimado do estoque', '', '', '', '', '', '', '', '', R.csvNum(e.valorTotal)]);
+  R.baixarCsv('sistema-rural-estoque-' + e.atual.data + '.csv', L);
+};
+
 /* Moldura do app (topo e navegação) e inicialização. */
 var ICONES_R = {
   inicio: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
@@ -2603,7 +2805,7 @@ var ICONES_R = {
 var TELAS_COM_NAV_R = {
   inicio: 'inicio', lancamentos: 'lancamentos', detalheLanc: 'lancamentos', lancar: 'lancamentos',
   financeiro: 'financeiro', formBaixa: 'financeiro', formMovimento: 'financeiro',
-  relatorios: 'relatorios', configRateio: 'relatorios',
+  relatorios: 'relatorios', configRateio: 'relatorios', estoque: 'mais', formContagem: 'mais', detalheContagem: 'mais',
   notas: 'mais', espelho: 'mais', formAprovacao: 'mais', formRecusa: 'mais', formNota: 'mais', formEmitente: 'mais',
   cadastros: 'mais', formItem: 'mais', formCliente: 'mais', formFornecedor: 'mais', formContaFin: 'mais',
   mais: 'mais', escritorio: 'mais', plano: 'mais', formConta: 'mais', empresas: 'mais', formEmpresa: 'mais', fechamento: 'mais',
