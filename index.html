@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sistema Rural">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "ac7587b14485";</script>
+<script>window.R_VERSAO = "40f6436ec129";</script>
 
 <style>
 :root {
@@ -311,11 +311,30 @@ R.nomeMes = function (ym) {
   return n.charAt(0).toUpperCase() + n.slice(1);
 };
 
-R.UNIDADES = [['UN', 'Unidade'], ['KG', 'Quilo (kg)'], ['G', 'Grama (g)'], ['T', 'Tonelada'], ['MC', 'Maço'], ['CX', 'Caixa'], ['DZ', 'Dúzia'], ['SC', 'Saco'],
-  ['PCT', 'Pacote'], ['BDJ', 'Bandeja'], ['L', 'Litro'], ['ML', 'Mililitro'], ['M3', 'Metro cúbico'], ['M', 'Metro'], ['H', 'Hora'], ['DIA', 'Diária'], ['SV', 'Serviço']];
+// Unidades em ordem alfabética
+R.UNIDADES = [['BDJ', 'Bandeja'], ['CX', 'Caixa'], ['DIA', 'Diária'], ['DZ', 'Dúzia'], ['G', 'Grama (g)'], ['H', 'Hora'], ['L', 'Litro'], ['MC', 'Maço'],
+  ['M', 'Metro'], ['M3', 'Metro cúbico'], ['ML', 'Mililitro'], ['PCT', 'Pacote'], ['KG', 'Quilo (kg)'], ['SC', 'Saco'], ['SV', 'Serviço'], ['T', 'Tonelada'], ['UN', 'Unidade']]
+  .sort(function (a, b) { return a[1].localeCompare(b[1], 'pt-BR'); });
 R.FORMAS = [['dinheiro', 'Dinheiro'], ['pix', 'PIX'], ['cartao_credito', 'Cartão de crédito'], ['cartao_debito', 'Cartão de débito'], ['boleto', 'Boleto'],
   ['transferencia', 'Transferência'], ['cheque', 'Cheque'], ['outros', 'Outros']];
-R.TIPOS_ITEM = [['produto', 'Produto que vendo'], ['insumo', 'Insumo ou material'], ['servico', 'Despesa ou serviço']];
+R.TIPOS_ITEM = [['produto', 'Produtos'], ['insumo', 'Insumo ou material'], ['servico', 'Despesa ou serviço']];
+
+// Telefone: celular (xx) x xxxx-xxxx ou fixo (xx) xxxx-xxxx, formatado enquanto a pessoa digita
+R.fmtTel = function (v) {
+  var d = String(v || '').replace(/\D/g, '').slice(0, 11);
+  if (!d) return '';
+  if (d.length <= 2) return '(' + d;
+  var r = d.slice(2);
+  if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + r.charAt(0) + ' ' + r.slice(1, 5) + '-' + r.slice(5);
+  return '(' + d.slice(0, 2) + ') ' + (r.length > 4 ? r.slice(0, 4) + '-' + r.slice(4) : r);
+};
+R.campoTel = function (nome, rotulo, valor) {
+  return '<label class="campo"><span>' + rotulo + '</span><input name="' + nome + '" data-tel inputmode="tel" maxlength="16" placeholder="(31) 9 9999-9999" value="' +
+    R.esc(R.fmtTel(valor)) + '"><small>Celular: (xx) x xxxx-xxxx · Fixo: (xx) xxxx-xxxx</small></label>';
+};
+document.addEventListener('input', function (ev) {
+  if (ev.target.hasAttribute && ev.target.hasAttribute('data-tel')) ev.target.value = R.fmtTel(ev.target.value);
+});
 R.rotulo = function (lista, cod) { var a = lista.filter(function (x) { return x[0] === cod; })[0]; return a ? a[1] : cod; };
 R.opcoes = function (lista, atual, vazio) {
   return (vazio ? '<option value="">' + R.esc(vazio) + '</option>' : '') + lista.map(function (x) {
@@ -821,7 +840,7 @@ R.telas.cadastros = function () {
     if (aba === 'itens') sub = R.rotulo(R.TIPOS_ITEM, r.tipo) + ' · ' + R.rotulo(R.UNIDADES, r.unidade) + (r.ncm ? ' · NCM ' + R.fmtNcm(r.ncm) : '');
     if (aba === 'clientes') sub = (r.documento ? R.fmtDoc(r.documento) : 'Sem CPF/CNPJ') + (r.municipio ? ' · ' + r.municipio + '/' + r.uf : '');
     if (aba === 'fornecedores') sub = r.documento ? R.fmtDoc(r.documento) : 'Sem CPF/CNPJ';
-    if (aba === 'contas') sub = (r.tipo === 'banco' ? 'Banco' : 'Caixa') + ' · conta contábil ' + r.contaContabilId;
+    if (aba === 'contas') sub = (r.tipo === 'banco' ? 'Conta bancária' : 'Caixa') + ' · conta contábil ' + r.contaContabilId;
     var ativo = aba === 'contas' ? r.ativa : r.ativo;
     var incompleto = aba === 'clientes' && !R.clienteCompleto(r);
     return '<button class="item" data-act="editarCad" data-id="' + R.esc(r.id) + '"><b>' + R.esc(r.nome) + '</b><small>' + R.esc(sub) + '</small>' +
@@ -904,7 +923,7 @@ R.telas.formCliente = function (r) {
     '<label class="campo"><span>Estado</span><select name="uf"><option value="">Selecione</option>' +
     R.UFS.map(function (u) { return '<option' + (u === r.uf ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></label></div>' +
     '<div class="grade2">' + R.campo('cep', 'CEP', r.cep ? r.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : '', 'inputmode="numeric" maxlength="9"') +
-    R.campo('telefone', 'Telefone', r.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    R.campoTel('telefone', 'Telefone', r.telefone) + '</div>' +
     R.campo('email', 'E-mail', r.email, 'type="email" inputmode="email"') +
     R.checkAtivo(r, 'ativo') + R.botoesForm() + '</form>');
 };
@@ -921,7 +940,7 @@ R.telas.formFornecedor = function (r) {
     '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
     R.campo('nome', 'Nome', r.nome, 'required maxlength="120"') +
     '<div class="grade2">' + R.campo('documento', 'CPF ou CNPJ (opcional)', R.fmtDoc(r.documento), 'inputmode="numeric"') +
-    R.campo('telefone', 'Telefone (opcional)', r.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    R.campoTel('telefone', 'Telefone (opcional)', r.telefone) + '</div>' +
     R.checkAtivo(r, 'ativo') + R.botoesForm() + '</form>');
 };
 
@@ -936,7 +955,7 @@ R.telas.formContaFin = function (r) {
   R.pintar('<h1>' + (r.id ? 'Editar conta' : 'Nova conta') + '</h1><form class="card" data-form="contaFin" novalidate><div class="msg" hidden></div>' +
     '<input type="hidden" name="id" value="' + R.esc(r.id) + '">' +
     R.campo('nome', 'Nome (ex.: Banco do Brasil, Caixa da feira)', r.nome, 'required maxlength="60"') +
-    '<label class="campo"><span>Tipo</span><select name="tipo">' + R.opcoes([['caixa', 'Caixa (dinheiro)'], ['banco', 'Conta em banco']], r.tipo || 'banco') + '</select></label>' +
+    '<label class="campo"><span>Tipo</span><select name="tipo">' + R.opcoes([['caixa', 'Caixa (dinheiro)'], ['banco', 'Conta bancária']], r.tipo || 'banco') + '</select></label>' +
     (r.id ? '<label class="check"><input type="checkbox" name="ativa" value="1"' + (r.ativa ? ' checked' : '') + '><span>Ativa</span></label>' : '') +
     R.botoesForm() + '</form>');
 };
@@ -1202,7 +1221,7 @@ R.renderItens = function () {
       '<label class="campo"><span>Valor unitário</span><input data-li="' + i + '" data-lc="vu" inputmode="decimal" placeholder="0,00" value="' + R.esc(li.vu) + '"></label>' +
       '<label class="campo"><span>Total do item</span><input data-li="' + i + '" data-lc="vt" inputmode="decimal" placeholder="0,00" value="' + R.esc(li.vt) + '"></label>' +
       '</div><div class="erro-linha" id="erroLinha' + i + '"></div></div>';
-  }).join('') + (disponiveis.length ? '' : '<div class="alerta aviso">Nenhum item ' + (venda ? 'do tipo "Produto que vendo" ' : '') + 'cadastrado ainda. Use "Cadastrar item novo".</div>');
+  }).join('') + (disponiveis.length ? '' : '<div class="alerta aviso">Nenhum item ' + (venda ? 'do tipo "Produtos" ' : '') + 'cadastrado ainda. Use "Cadastrar item novo".</div>');
 };
 
 R.opcaoItem = function (i, atual) {
@@ -1258,7 +1277,7 @@ R.calcLanc = function () {
     var n = 'Item ' + (i + 1) + ': ', q = R.parseNum(li.qtd), vu = R.parseNum(li.vu), vt = R.paraCentavos(li.vt), msgs = [];
     var it = R.porId(R.cad.itens, li.itemId);
     if (!it) msgs.push('selecione o item');
-    else if (L.tipo === 'venda' && it.tipo !== 'produto') msgs.push('na venda, use só produtos que você vende');
+    else if (L.tipo === 'venda' && it.tipo !== 'produto') msgs.push('na venda, use só itens do tipo "Produtos"');
     if (!(q > 0)) msgs.push('informe a quantidade');
     if (!(vu > 0)) msgs.push('informe o valor unitário');
     if (!(vt > 0)) msgs.push('informe o total do item');
@@ -1589,7 +1608,7 @@ R.telas.formEmitente = function () {
     '<form class="card" data-form="emitente" novalidate><div class="msg" hidden></div>' +
     R.campo('logradouro', 'Endereço (rua, estrada, sítio, fazenda)', m.logradouro, 'maxlength="120"') +
     '<div class="grade2">' + R.campo('numero', 'Número (ou S/N)', m.numero, 'maxlength="20"') + R.campo('bairro', 'Bairro ou localidade', m.bairro, 'maxlength="80"') + '</div>' +
-    '<div class="grade2">' + R.campo('cep', 'CEP', R.fmtCep(m.cep), 'inputmode="numeric" maxlength="9"') + R.campo('telefone', 'Telefone', m.telefone, 'inputmode="tel" maxlength="30"') + '</div>' +
+    '<div class="grade2">' + R.campo('cep', 'CEP', R.fmtCep(m.cep), 'inputmode="numeric" maxlength="9"') + R.campoTel('telefone', 'Telefone', m.telefone) + '</div>' +
     R.campo('email', 'E-mail', m.email, 'type="email" inputmode="email"') +
     '<div class="botoes"><button class="btn primario">Salvar</button></div></form>');
 };
@@ -2513,7 +2532,7 @@ R.renderConfigRateio = function (prods) {
   prods = prods || R.itensAtivos('produto');
   var e = R.cfgEdit, num = function (v) { return v || v === 0 ? String(v).replace('.', ',') : ''; };
   var html = '<h1>Áreas, conversões e medidas</h1><p class="muted">Usadas para dividir os gastos gerais entre os produtos.</p>';
-  if (!prods.length) { R.pintar(html + '<div class="card"><p>Cadastre os produtos que você vende primeiro.</p></div>'); return; }
+  if (!prods.length) { R.pintar(html + '<div class="card"><p>Cadastre os itens do tipo "Produtos" primeiro.</p></div>'); return; }
   html += '<form class="card" data-form="configRateio" novalidate><div class="msg" hidden></div>' +
     '<h2>Área plantada (hectares)</h2>' + prods.map(function (p) { return '<label class="campo"><span>' + R.esc(p.nome) + '</span><input inputmode="decimal" data-cfg="areas" data-id="' + R.esc(p.id) + '" value="' + num(e.areas[p.id]) + '" placeholder="0"></label>'; }).join('') +
     '<h2>Conversão de quantidade</h2><p class="muted" style="margin-top:0">Para comparar produtos vendidos em unidades diferentes. Ex.: 1 maço de alface = 0,3 kg.</p>' +
