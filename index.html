@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1b6e45">
-<title>Sistema Rural</title>
+<meta name="theme-color" content="#0f3d4c">
+<title>Caderno do Campo</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,9 +12,9 @@
 <link rel="apple-touch-icon" href="icone-apple.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Sistema Rural">
+<meta name="apple-mobile-web-app-title" content="Caderno do Campo">
 <script>window.R_API = "https://script.google.com/macros/s/AKfycby9bNmqoZXxLt8caQyr8baBLpDBuQOp97L6Sv-4VS14SyvEKu3eKSFcWOreIuUYuVLF/exec";</script>
-<script>window.R_VERSAO = "9ec03305660f";</script>
+<script>window.R_VERSAO = "49f69b641504";</script>
 
 <style>
 :root {
@@ -259,11 +259,49 @@ table.estoque td:first-child { white-space: normal; overflow-wrap: anywhere; }
   table.estoque th, table.estoque td { padding: 5px 2px; }
 }
 
+/* ---------- Tema "Caderno do Campo" (estilo B: azul-petróleo e verde) ---------- */
+:root {
+  --pri: #0f3d4c; --pri-escuro: #0a2d38; --pri-txt: #fff; --pri-claro: #e4edf0;
+  --acento: #237a4b; --acento-escuro: #1b6139;
+  --bg: #f3f5f7; --card: #fff; --txt: #13232b; --muted: #56666e; --borda: #dde3e7;
+  --sombra: 0 1px 2px rgba(15, 40, 50, .05);
+  --raio: 10px;
+}
+h1 { font-size: 1.42rem; letter-spacing: -.01em; }
+header.topo { background: var(--pri); color: #fff; }
+.marca-bloco { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#marcaIcone { display: flex; flex: none; }
+#marcaIcone svg { width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .28); }
+#marca { color: #fff; font-size: 1.02rem; }
+#atualizando { background: rgba(255, 255, 255, .16); color: #fff; }
+.btn-topo { background: rgba(255, 255, 255, .12); color: #fff; border: 1px solid rgba(255, 255, 255, .28); font-weight: 600; }
+.card, .kpi, .item { border-color: var(--borda); box-shadow: var(--sombra); }
+.kpi span { text-transform: none; }
+.kpi b { font-size: 1.2rem; font-variant-numeric: tabular-nums; color: var(--txt); }
+table.tabela, table.dre, table.conf, .valor { font-variant-numeric: tabular-nums; }
+.btn { border-radius: 9px; border-color: #cfd8de; }
+.btn.acento { background: var(--acento); border-color: var(--acento); }
+.btn.acento:hover { background: var(--acento-escuro); }
+input, select { border-color: #c9d3da; border-radius: 9px; }
+.seg { background: #e6ebef; }
+.seg button.ativo { color: var(--pri); }
+nav#nav { border-top-color: var(--borda); }
+nav#nav button svg { padding: 2px 12px; box-sizing: content-box; }
+nav#nav button.ativo svg { background: var(--pri-claro); border-radius: 99px; }
+.item.lanc.compra { border-left-color: #b8762a; }
+.item.lanc.venda { border-left-color: var(--acento); }
+.entrada { margin-top: 9vh; padding: 24px 20px; }
+.logo { flex-direction: column; text-align: center; gap: 10px; margin-bottom: 22px; }
+.logo svg { width: 64px; height: 64px; }
+.logo b { font-size: 1.45rem; color: var(--pri); letter-spacing: -.01em; }
+.logo span { font-size: .95rem; }
+.toast { background: #13232b; }
+
 </style>
 </head>
 <body>
 <header class="topo" id="topo" hidden>
-  <div id="marca">Sistema Rural</div>
+  <div class="marca-bloco"><span id="marcaIcone"></span><div id="marca">Caderno do Campo</div></div>
   <span id="atualizando" hidden>Atualizando…</span>
   <button class="btn-topo" id="trocaEmpresa" data-act="escolherEmpresa" hidden></button>
 </header>
@@ -280,6 +318,18 @@ var R = {
 };
 
 R.el = function (id) { return document.getElementById(id); };
+
+// Marca "Caderno do Campo": ícone desenhado em SVG (o mesmo dos PNG gerados por tools/gerar_icones.py)
+R.ICONES_MARCA = {
+  barras: '<rect width="64" height="64" rx="14" fill="#0F3D4C"/><rect x="13" y="38" width="9" height="14" rx="2" fill="#FFFFFF"/>' +
+    '<rect x="27" y="30" width="9" height="22" rx="2" fill="#FFFFFF"/><rect x="41" y="24" width="9" height="28" rx="2" fill="#FFFFFF"/>' +
+    '<path d="M45.5 24V18" stroke="#3FA36B" stroke-width="2.5"/><path d="M45.5 19C45.5 12 50 8 56 8C56 14 52 19 45.5 19Z" fill="#3FA36B"/>',
+  livro: '<rect width="64" height="64" rx="14" fill="#0F3D4C"/><path d="M13 24L32 28L51 24V47L32 51L13 47Z" fill="#FFFFFF"/>' +
+    '<path d="M32 28V51" stroke="#0F3D4C" stroke-width="2"/><path d="M32 22C32 14 38 9 45 9C45 16 40 21 32 22Z" fill="#3FA36B"/>'
+};
+R.iconeMarca = 'livro';
+R.svgMarca = function (classe) { return '<svg class="' + (classe || '') + '" viewBox="0 0 64 64" aria-hidden="true">' + R.ICONES_MARCA[R.iconeMarca] + '</svg>'; };
+R.NOME_APP = 'Caderno do Campo';
 
 R.esc = function (v) {
   return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -524,12 +574,12 @@ R.campoSenha = function (nome, rotulo, auto, ajuda) {
 };
 
 /* Telas de entrada: login, recuperação e troca de senha, escolha de empresa. */
-var LOGO_R = '<div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11"/><path d="M12 13c0-4 3-7 8-7 0 5-3 8-8 7z"/><path d="M12 16c0-3-2-6-7-6 0 4 3 7 7 6z"/></svg><div><b>Sistema Rural</b><span>Financeiro e resultado da propriedade</span></div></div>';
+function LOGO_R_() { return '<div class="logo">' + R.svgMarca() + '<div><b>' + R.NOME_APP + '</b><span>As contas da propriedade rural, em dia</span></div></div>'; }
 
 var AJUDA_SENHA = 'Pelo menos 8 caracteres, com letras e números.';
 
 R.telas.login = function (d) {
-  R.pintar('<div class="entrada card">' + LOGO_R +
+  R.pintar('<div class="entrada card">' + LOGO_R_() +
     (d && d.aviso ? '<div class="alerta ok">' + R.esc(d.aviso) + '</div>' : '') +
     '<form data-form="login" novalidate>' +
     '<div class="msg" hidden></div>' +
@@ -553,7 +603,7 @@ R.acoes.irEsqueci = function () { R.ir('esqueci'); };
 R.acoes.irLogin = function () { R.ir('login'); };
 
 R.telas.esqueci = function () {
-  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Recuperar a senha</h2>' +
+  R.pintar('<div class="entrada card">' + LOGO_R_() + '<h2>Recuperar a senha</h2>' +
     '<p class="muted">Informe seu e-mail de acesso. Se ele estiver cadastrado, enviaremos um código.</p>' +
     '<form data-form="esqueci" novalidate><div class="msg" hidden></div>' +
     '<label class="campo"><span>E-mail</span><input type="email" name="email" required autocomplete="username" inputmode="email"></label>' +
@@ -567,7 +617,7 @@ R.forms.esqueci = function (d) {
 };
 
 R.telas.redefinir = function (d) {
-  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Criar nova senha</h2>' +
+  R.pintar('<div class="entrada card">' + LOGO_R_() + '<h2>Criar nova senha</h2>' +
     '<p class="muted">Se o e-mail estiver cadastrado, o código chega em alguns minutos. Olhe também a caixa de spam.</p>' +
     '<form data-form="redefinir" novalidate><div class="msg" hidden></div>' +
     '<input type="hidden" name="email" value="' + R.esc(d.email) + '">' +
@@ -584,7 +634,7 @@ R.forms.redefinir = function (d) {
 };
 
 R.telas.trocarSenha = function () {
-  R.pintar('<div class="entrada card">' + LOGO_R + '<h2>Crie sua senha</h2>' +
+  R.pintar('<div class="entrada card">' + LOGO_R_() + '<h2>Crie sua senha</h2>' +
     '<p class="muted">Por segurança, troque a senha temporária antes de continuar.</p>' +
     '<form data-form="trocarObrigatoria" novalidate><div class="msg" hidden></div>' +
     (R.senhaRecente ? '' : R.campoSenha('senhaAtual', 'Senha temporária', 'current-password')) +
@@ -673,7 +723,7 @@ R.telas.inicio = function () {
   R.pintar('<h1>Olá, ' + R.esc(R.usuario.nome.split(' ')[0]) + '</h1>' +
     '<p class="muted">' + (contador ? 'Área contábil' : 'Área do produtor') + ' · ' + R.esc(e.nome) + '</p>' +
     '<div class="acoes-grandes"><button class="btn primario grande" data-act="novaCompra">+ Lançar compra ou despesa</button>' +
-    '<button class="btn primario grande" data-act="novaVenda">+ Lançar venda</button></div>' +
+    '<button class="btn primario grande acento" data-act="novaVenda">+ Lançar venda</button></div>' +
     '<button class="item" data-act="irNotas"><b>Notas e espelhos</b><small>Espelhos para o cliente aprovar e registro das notas fiscais</small></button>' +
     '<button class="item" data-act="irFinanceiro" data-aba="pagar"><b>Contas a pagar e a receber</b><small>Registrar pagamentos e ver o que vence</small></button>' +
     '<button class="item" data-act="nav" data-tela="estoque"><b>Estoque</b><small>Registrar a contagem e ver o consumo e a produção</small></button>' +
@@ -2820,7 +2870,8 @@ R.atualizarMoldura = function () {
   var troca = R.el('trocaEmpresa');
   troca.hidden = !logado || !R.empresas.length || (R.empresa && R.empresas.length < 2) || R.tela === 'escolher';
   troca.textContent = R.empresa ? 'Trocar empresa' : 'Abrir empresa';
-  R.el('marca').textContent = logado && R.empresa ? R.empresa.nome : 'Sistema Rural';
+  R.el('marca').textContent = logado && R.empresa ? R.empresa.nome : R.NOME_APP;
+  R.el('marcaIcone').innerHTML = R.svgMarca();
   if (!logado) return;
   var itens = [];
   if (R.empresa) itens.push(['inicio', 'Início'], ['lancamentos', 'Lançamentos'], ['financeiro', 'Financeiro'], ['relatorios', 'Relatórios']);
